@@ -31,10 +31,13 @@ class TasaInteresBloc extends Bloc<TasaInteresEvent, TasaInteresState> {
     AgregarTasaInteres event,
     Emitter<TasaInteresState> emit,
   ) async {
+    print('▶️ [TasaInteresBloc] AgregarTasaInteres: ${event.tasa}');
     try {
       await repository.agregarTasaInteres(event.tasa);
-      add(CargarTasasInteres()); // Reload list of rates after adding
+      print('✅ [TasaInteresBloc] Tasa guardada: ${event.tasa}');
+      add(CargarTasasInteres());
     } catch (e) {
+      print('❌ [TasaInteresBloc] Error al agregar tasa: $e');
       emit(TasaInteresError(mensaje: e.toString()));
     }
   }
@@ -43,10 +46,15 @@ class TasaInteresBloc extends Bloc<TasaInteresEvent, TasaInteresState> {
     EditarTasaInteres event,
     Emitter<TasaInteresState> emit,
   ) async {
+    print(
+      '▶️ [TasaInteresBloc] EditarTasaInteres: id=${event.id}, nueva=${event.tasaActualizada}',
+    );
     try {
       await repository.editarTasaInteres(event.id, event.tasaActualizada);
-      add(CargarTasasInteres()); // Reload list of rates after editing
+      print('✅ [TasaInteresBloc] Tasa actualizada: ${event.tasaActualizada}');
+      add(CargarTasasInteres());
     } catch (e) {
+      print('❌ [TasaInteresBloc] Error al editar tasa: $e');
       emit(TasaInteresError(mensaje: e.toString()));
     }
   }

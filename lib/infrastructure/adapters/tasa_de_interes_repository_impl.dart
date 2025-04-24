@@ -7,6 +7,7 @@ class TasaInteresAdapter implements TasaInteresRepository {
   @override
   Future<void> agregarTasaInteres(TasaDeInteres tasa) async {
     _tasas.add(tasa);
+    print('⬆️ [TasaInteresAdapter] agregarTasaInteres: ${tasa.toString()}');
   }
 
   @override
@@ -14,6 +15,9 @@ class TasaInteresAdapter implements TasaInteresRepository {
     final index = _tasas.indexWhere((t) => t.id == id);
     if (index != -1) {
       _tasas[index] = tasaActualizada;
+      print(
+        '🔄 [TasaInteresAdapter] editarTasaInteres: ${tasaActualizada.toString()}',
+      );
     } else {
       throw Exception('Tasa de interés con ID $id no encontrada');
     }

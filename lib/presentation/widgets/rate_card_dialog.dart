@@ -60,10 +60,34 @@ class _RateCardDialogState extends State<RateCardDialog> {
   }
 
   void _onSave() {
-    final p = double.tryParse(_valorCtrl.text);
-    final i = int.tryParse(_iniCtrl.text);
-    final f = int.tryParse(_finCtrl.text);
-    if (p == null || i == null || f == null) return;
+    final valorText = _valorCtrl.text;
+    final iniText = _iniCtrl.text;
+    final finText = _finCtrl.text;
+
+    if (iniText.isEmpty || finText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Los periodos son obligatorios')),
+      );
+      return;
+    }
+
+    final i = int.tryParse(iniText);
+    final f = int.tryParse(finText);
+    if (i == null || f == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Los periodos deben ser números enteros')),
+      );
+      return;
+    }
+
+    final raw = valorText.isEmpty ? 0.0 : double.tryParse(valorText);
+    final p = raw != null ? raw / 100 : null;
+    if (p == null && !valorText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('El valor debe ser un número válido')),
+      );
+      return;
+    }
 
     final periodicidad = _unidadesDeTiempo.firstWhere(
       (u) => u.id == _periodicidadId,
@@ -75,7 +99,7 @@ class _RateCardDialogState extends State<RateCardDialog> {
 
     final nueva = TasaDeInteres(
       id: widget.tasa?.id ?? DateTime.now().millisecondsSinceEpoch,
-      valor: p,
+      valor: p ?? 0.0,
       periodicidad: periodicidad,
       capitalizacion: capitalizacion,
       tipo: tipoStr,

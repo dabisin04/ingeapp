@@ -35,15 +35,28 @@ class _MovementCardDialogState extends State<MovementCardDialog> {
   }
 
   void _onSave() {
-    final periodo = int.tryParse(_periodoCtrl.text);
-    final valorNum = double.tryParse(_valorCtrl.text);
-    if (periodo == null || valorNum == null) return;
+    final periodoText = _periodoCtrl.text;
+    final valorText = _valorCtrl.text;
+
+    if (periodoText.isEmpty) {
+      return;
+    }
+
+    final periodo = int.tryParse(periodoText);
+    if (periodo == null) {
+      return;
+    }
+
+    final valorNum = valorText.isEmpty ? 0.0 : double.tryParse(valorText);
+    if (valorNum == null && !valorText.isEmpty) {
+      return;
+    }
 
     final bloc = BlocProvider.of<MovimientoBloc>(context);
     final nuevo = Movimiento(
       id: widget.mov?.id ?? DateTime.now().millisecondsSinceEpoch,
       periodo: periodo,
-      valor: valorNum,
+      valor: valorNum ?? 0.0,
       tipo: _tipo,
     );
     if (widget.mov == null) {

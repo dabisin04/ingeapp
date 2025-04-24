@@ -18,7 +18,7 @@ class RateCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         title: Text(
-          '${tasa.valor.toStringAsFixed(2)}% (${esAnticipada ? "Ant." : "Ven."})',
+          '${(tasa.valor * 100).toStringAsFixed(2)}% (${esAnticipada ? "Ant." : "Ven."})',
         ),
         subtitle: Text(
           'Período: ${tasa.periodoInicio} → ${tasa.periodoFin}\n'
