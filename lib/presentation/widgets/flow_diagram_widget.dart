@@ -3,16 +3,29 @@ import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
 
 class FlowDiagramWidget extends StatelessWidget {
   final DiagramaDeFlujo diagram;
-  FlowDiagramWidget({required this.diagram});
+  const FlowDiagramWidget({required this.diagram});
 
   @override
   Widget build(BuildContext context) {
+    const double spacing = 50.0;
+    // Ahora incluimos el nodo "final", por eso +(1)
+    final totalWidth = spacing * (diagram.cantidadDePeriodos + 1);
+
     return Card(
       color: Colors.grey[850],
-      child: Container(
+      child: SizedBox(
         height: 200,
-        padding: EdgeInsets.all(8),
-        child: CustomPaint(painter: _FlowPainter(diagram), child: Container()),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            width: totalWidth,
+            padding: const EdgeInsets.all(8),
+            child: CustomPaint(
+              size: Size(totalWidth, 200),
+              painter: _FlowPainter(diagram, spacing),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -20,50 +33,61 @@ class FlowDiagramWidget extends StatelessWidget {
 
 class _FlowPainter extends CustomPainter {
   final DiagramaDeFlujo d;
-  _FlowPainter(this.d);
+  final double spacing;
+  _FlowPainter(this.d, this.spacing);
 
   @override
   void paint(Canvas canvas, Size size) {
+    final midY = size.height / 2;
     final paintLine =
         Paint()
           ..color = Colors.white
           ..strokeWidth = 2;
-    // Línea base
-    canvas.drawLine(
-      Offset(0, size.height / 2),
-      Offset(size.width, size.height / 2),
-      paintLine,
-    );
 
-    final periodWidth = size.width / d.cantidadDePeriodos;
+    // 1) Dibujar tramos de tasa de interés (incluyendo el fin)
+    for (final tasa in d.tasasDeInteres) {
+      final left = tasa.periodoInicio * spacing;
+      // +1 para cubrir inclusive el nodo final
+      final width = (tasa.periodoFin - tasa.periodoInicio + 1) * spacing;
+      final paintBar = Paint()..color = Colors.blue.withOpacity(0.3);
+      final rect = Rect.fromLTWH(left, midY - 20, width, 40);
+      canvas.drawRect(rect, paintBar);
+
+      // Etiqueta porcentaje centrada en la franja
+      final label = TextPainter(
+        text: TextSpan(
+          text: '${tasa.valor.toStringAsFixed(1)}%',
+          style: TextStyle(color: Colors.white, fontSize: 12),
+        ),
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      );
+      label.layout(minWidth: width);
+      label.paint(canvas, Offset(left + (width - label.width) / 2, midY - 35));
+    }
+
+    // 2) Línea base completa
+    canvas.drawLine(Offset(0, midY), Offset(size.width, midY), paintLine);
+
+    // 3) Marcas y etiquetas de periodo (0 ... cantidadDePeriodos)
     final textPainter = TextPainter(
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     );
-
-    // Marcas y etiquetas de periodos
     for (int i = 0; i <= d.cantidadDePeriodos; i++) {
-      final x = i * periodWidth;
-      canvas.drawLine(
-        Offset(x, size.height / 2 - 5),
-        Offset(x, size.height / 2 + 5),
-        paintLine,
-      );
+      final x = i * spacing;
+      canvas.drawLine(Offset(x, midY - 5), Offset(x, midY + 5), paintLine);
       textPainter.text = TextSpan(
         text: '$i',
         style: TextStyle(color: Colors.white, fontSize: 12),
       );
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x - textPainter.width / 2, size.height / 2 + 8),
-      );
+      textPainter.paint(canvas, Offset(x - textPainter.width / 2, midY + 8));
     }
 
-    // Aquí podrías dibujar flechas para ingresos/egresos a partir de d.movimientos...
-    // y sombrear los tramos de tasa usando d.tasasDeInteres.
+    // 4) (Opcional) aquí irían las flechas de movimientos...
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant CustomPainter old) => true;
 }

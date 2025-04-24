@@ -1,5 +1,8 @@
 import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
+import 'package:inge_app/domain/entities/movimiento.dart';
+import 'package:inge_app/domain/entities/tasa_de_interes.dart';
 import 'package:inge_app/domain/entities/unidad_de_tiempo.dart';
+import 'package:inge_app/domain/entities/valor.dart';
 import 'package:inge_app/domain/repositories/diagrama_de_flujo_repository.dart';
 
 class FlowDiagramAdapter implements FlowDiagramRepository {
@@ -19,6 +22,7 @@ class FlowDiagramAdapter implements FlowDiagramRepository {
       cantidadDePeriodos: periods,
       tasasDeInteres: [],
       movimientos: [],
+      valores: [],
     );
   }
 
@@ -41,11 +45,48 @@ class FlowDiagramAdapter implements FlowDiagramRepository {
       cantidadDePeriodos: periods,
       tasasDeInteres: _diagram!.tasasDeInteres,
       movimientos: _diagram!.movimientos,
+      valores: _diagram!.valores,
     );
   }
 
   @override
   Future<void> clearDiagram() async {
     _diagram = null;
+  }
+
+  @override
+  Future<void> updateTasas(List<TasaDeInteres> tasas) async {
+    _diagram = DiagramaDeFlujo(
+      id: _diagram!.id,
+      unidadDeTiempo: _diagram!.unidadDeTiempo,
+      cantidadDePeriodos: _diagram!.cantidadDePeriodos,
+      tasasDeInteres: tasas,
+      movimientos: _diagram!.movimientos,
+      valores: _diagram!.valores, // si ya lo agregaste
+    );
+  }
+
+  @override
+  Future<void> updateValores(List<Valor> valores) async {
+    _diagram = DiagramaDeFlujo(
+      id: _diagram!.id,
+      unidadDeTiempo: _diagram!.unidadDeTiempo,
+      cantidadDePeriodos: _diagram!.cantidadDePeriodos,
+      tasasDeInteres: _diagram!.tasasDeInteres,
+      movimientos: _diagram!.movimientos,
+      valores: valores,
+    );
+  }
+
+  @override
+  Future<void> updateMovimientos(List<Movimiento> movimientos) async {
+    _diagram = DiagramaDeFlujo(
+      id: _diagram!.id,
+      unidadDeTiempo: _diagram!.unidadDeTiempo,
+      cantidadDePeriodos: _diagram!.cantidadDePeriodos,
+      tasasDeInteres: _diagram!.tasasDeInteres,
+      movimientos: movimientos,
+      valores: _diagram!.valores,
+    );
   }
 }
