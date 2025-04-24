@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:inge_app/domain/entities/valor.dart';
 import 'package:inge_app/application/blocs/valor/valor_bloc.dart';
 import 'package:inge_app/application/blocs/valor/valor_event.dart';
+import 'package:inge_app/application/blocs/valor/valor_state.dart';
 
 class ValueCardDialog extends StatefulWidget {
   final Valor? valor;
@@ -15,7 +16,8 @@ class ValueCardDialog extends StatefulWidget {
 class _ValueCardDialogState extends State<ValueCardDialog> {
   late TextEditingController _periodoCtrl;
   late TextEditingController _valorCtrl;
-  String _tipo = 'Presente';
+  String? _tipo;
+  String _flujo = 'Ingreso';
 
   @override
   void initState() {
@@ -24,9 +26,10 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
       text: widget.valor?.periodo.toString() ?? '',
     );
     _valorCtrl = TextEditingController(
-      text: widget.valor?.valor.toString() ?? '',
+      text: widget.valor?.valor?.toString() ?? '',
     );
-    _tipo = widget.valor?.tipo ?? 'Presente';
+    _tipo = widget.valor?.tipo;
+    _flujo = widget.valor?.flujo ?? 'Ingreso';
   }
 
   @override
@@ -39,21 +42,20 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
   void _onSave() {
     final periodo = int.tryParse(_periodoCtrl.text);
     final valorNum = double.tryParse(_valorCtrl.text);
-    if (periodo == null || valorNum == null) return;
-    final bloc = context.read<ValorBloc>();
+    if (periodo == null || _tipo == null) return;
 
+    final nueva = Valor(
+      valor: valorNum,
+      periodo: periodo,
+      tipo: _tipo!,
+      flujo: _flujo,
+    );
+
+    final bloc = context.read<ValorBloc>();
     if (widget.valor == null) {
-      // Añadir
-      bloc.add(
-        AgregarValorEvent(
-          Valor(valor: valorNum, periodo: periodo, tipo: _tipo),
-        ),
-      );
+      bloc.add(AgregarValorEvent(nueva));
     } else {
-      // Editar
-      bloc.add(
-        EditarValorEvent(Valor(valor: valorNum, periodo: periodo, tipo: _tipo)),
-      );
+      bloc.add(EditarValorEvent(nueva));
     }
 
     Navigator.of(context).pop();
@@ -61,6 +63,40 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final state = context.watch<ValorBloc>().state;
+    List<String> tiposDisponibles = ['Presente', 'Futuro'];
+    if (state is ValorLoaded) {
+      final usados = state.valores.map((v) => v.tipo).toSet();
+      tiposDisponibles =
+          tiposDisponibles.where((t) => !usados.contains(t)).toList();
+      if (widget.valor != null &&
+          !tiposDisponibles.contains(widget.valor!.tipo)) {
+        tiposDisponibles.insert(0, widget.valor!.tipo);
+      }
+    }
+
+    if (tiposDisponibles.isEmpty) {
+      return AlertDialog(
+        title: Text('No hay tipos disponibles'),
+        content: Text(
+          'Ya existe un valor Presente y un valor Futuro.\n'
+          'Borra uno antes de añadir otro.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text('OK'),
+          ),
+        ],
+      );
+    }
+
+    final tipoSeleccionado =
+        (_tipo != null && tiposDisponibles.contains(_tipo))
+            ? _tipo!
+            : tiposDisponibles.first;
+    _tipo = tipoSeleccionado;
+
     return AlertDialog(
       title: Text(widget.valor == null ? 'Añadir Valor' : 'Editar Valor'),
       content: SingleChildScrollView(
@@ -75,16 +111,27 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
             TextField(
               controller: _valorCtrl,
               keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Valor (\$)'),
+              decoration: InputDecoration(
+                labelText: 'Valor (puede quedar vacío)',
+              ),
             ),
             DropdownButtonFormField<String>(
-              value: _tipo,
+              value: tipoSeleccionado,
+              decoration: InputDecoration(labelText: 'Tipo'),
               items:
-                  ['Presente', 'Futuro']
+                  tiposDisponibles
                       .map((t) => DropdownMenuItem(value: t, child: Text(t)))
                       .toList(),
-              onChanged: (v) => setState(() => _tipo = v!),
-              decoration: InputDecoration(labelText: 'Tipo'),
+              onChanged: (v) => setState(() => _tipo = v),
+            ),
+            DropdownButtonFormField<String>(
+              value: _flujo,
+              decoration: InputDecoration(labelText: 'Flujo'),
+              items:
+                  ['Ingreso', 'Egreso']
+                      .map((f) => DropdownMenuItem(value: f, child: Text(f)))
+                      .toList(),
+              onChanged: (v) => setState(() => _flujo = v!),
             ),
           ],
         ),

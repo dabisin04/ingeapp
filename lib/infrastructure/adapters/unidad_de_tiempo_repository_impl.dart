@@ -4,8 +4,8 @@ import 'package:inge_app/domain/repositories/unidad_de_tiempo_repository.dart';
 class UnidadDeTiempoAdapter implements UnidadDeTiempoRepository {
   final List<UnidadDeTiempo> _unidadesDeTiempo = [
     UnidadDeTiempo(id: 1, nombre: 'Diaria', valor: 360),
-    UnidadDeTiempo(id: 2, nombre: 'Semanal', valor: 52),
-    UnidadDeTiempo(id: 3, nombre: 'Quincenal', valor: 26),
+    UnidadDeTiempo(id: 2, nombre: 'Semanal', valor: 48),
+    UnidadDeTiempo(id: 3, nombre: 'Quincenal', valor: 24),
     UnidadDeTiempo(id: 4, nombre: 'Mensual', valor: 12),
     UnidadDeTiempo(id: 5, nombre: 'Bimestral', valor: 6),
     UnidadDeTiempo(id: 6, nombre: 'Trimestral', valor: 4),

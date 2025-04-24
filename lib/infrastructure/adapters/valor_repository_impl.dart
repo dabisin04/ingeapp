@@ -1,3 +1,4 @@
+// lib/adapters/valor_adapter.dart
 import 'package:inge_app/domain/entities/valor.dart';
 import 'package:inge_app/domain/repositories/valor_repository.dart';
 
@@ -6,39 +7,54 @@ class ValorAdapter implements ValorRepository {
 
   @override
   Future<void> addValor(Valor valor) async {
+    print(
+      '⬆️ [ValorAdapter] addValor: periodo=${valor.periodo}, tipo=${valor.tipo}, flujo=${valor.flujo}, valor=${valor.valor}',
+    );
     _valores.add(valor);
   }
 
   @override
   Future<List<Valor>> getValores() async {
+    print('📦 [ValorAdapter] getValores → ${_valores.length} registros');
     return _valores;
   }
 
   @override
   Future<void> updateValor(Valor valor) async {
+    print(
+      '🔄 [ValorAdapter] updateValor: periodo=${valor.periodo}, tipo=${valor.tipo}, flujo=${valor.flujo}, valor=${valor.valor}',
+    );
     final index = _valores.indexWhere(
-      (v) => v.periodo == valor.periodo && v.tipo == valor.tipo,
+      (v) =>
+          v.periodo == valor.periodo &&
+          v.tipo == valor.tipo &&
+          v.flujo == valor.flujo,
     );
     if (index != -1) {
       _valores[index] = valor;
     } else {
       throw Exception(
-        'Valor no encontrado para periodo ${valor.periodo} y tipo ${valor.tipo}',
+        'Valor no encontrado para periodo ${valor.periodo}, tipo ${valor.tipo}, flujo ${valor.flujo}',
       );
     }
   }
 
   @override
-  Future<void> deleteValor(int periodo, String tipo) async {
-    _valores.removeWhere((v) => v.periodo == periodo && v.tipo == tipo);
+  Future<void> deleteValor(int periodo, String tipo, String flujo) async {
+    print(
+      '❌ [ValorAdapter] deleteValor: periodo=$periodo, tipo=$tipo, flujo=$flujo',
+    );
+    _valores.removeWhere(
+      (v) => v.periodo == periodo && v.tipo == tipo && v.flujo == flujo,
+    );
   }
 
   @override
   Future<Valor> getValorPorPeriodo(int periodo) async {
+    print('🔍 [ValorAdapter] getValorPorPeriodo: periodo=$periodo');
     try {
-      final valor = _valores.firstWhere((v) => v.periodo == periodo);
-      return valor;
-    } catch (e) {
+      return _valores.firstWhere((v) => v.periodo == periodo);
+    } catch (_) {
       throw Exception('Valor no encontrado para el periodo $periodo');
     }
   }

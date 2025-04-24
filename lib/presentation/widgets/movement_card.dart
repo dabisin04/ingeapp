@@ -19,8 +19,8 @@ class MovementCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         leading: Icon(
-          mov.tipo == 'Ingreso' ? Icons.arrow_upward : Icons.arrow_downward,
-          color: mov.tipo == 'Ingreso' ? Colors.green : Colors.red,
+          mov.tipo == 'Ingreso' ? Icons.arrow_downward : Icons.arrow_upward,
+          color: mov.tipo == 'Ingreso' ? Colors.red : Colors.green,
         ),
         title: Text('${mov.tipo} — Periodo ${mov.periodo}'),
         subtitle: Text(valorTexto),

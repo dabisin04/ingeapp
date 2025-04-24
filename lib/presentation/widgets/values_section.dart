@@ -13,6 +13,10 @@ class ValuesSection extends StatelessWidget {
         if (state is ValorLoading) {
           return Center(child: CircularProgressIndicator());
         } else if (state is ValorLoaded) {
+          final tienePresente = state.valores.any((v) => v.tipo == 'Presente');
+          final tieneFuturo = state.valores.any((v) => v.tipo == 'Futuro');
+          final puedenAnadir = !(tienePresente && tieneFuturo);
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -23,10 +27,20 @@ class ValuesSection extends StatelessWidget {
                 icon: Icon(Icons.add),
                 label: Text('Añadir Valor'),
                 onPressed:
-                    () => showDialog(
-                      context: context,
-                      builder: (_) => ValueCardDialog(),
-                    ),
+                    puedenAnadir
+                        ? () => showDialog(
+                          context: context,
+                          builder: (_) => ValueCardDialog(),
+                        )
+                        : () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Ya existe un Presente y un Futuro. Borra uno antes de añadir.',
+                              ),
+                            ),
+                          );
+                        },
               ),
             ],
           );

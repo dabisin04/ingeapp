@@ -4,6 +4,6 @@ abstract class ValorRepository {
   Future<void> addValor(Valor valor);
   Future<List<Valor>> getValores();
   Future<void> updateValor(Valor valor);
-  Future<void> deleteValor(int periodo, String tipo);
-  Future<Valor?> getValorPorPeriodo(int periodo); // Nuevo método
+  Future<void> deleteValor(int periodo, String tipo, String flujo);
+  Future<Valor> getValorPorPeriodo(int periodo);
 }

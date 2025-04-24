@@ -15,7 +15,12 @@ class ValueCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 4),
       child: ListTile(
         title: Text('Periodo ${valor.periodo} — ${valor.tipo}'),
-        subtitle: Text('\$${valor.valor.toStringAsFixed(2)}'),
+        subtitle: Text(
+          // Aseguramos que valor.valor no sea null antes de formatearlo
+          valor.valor != null
+              ? '\$${valor.valor?.toStringAsFixed(2)}'
+              : 'Sin valor',
+        ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -30,9 +35,13 @@ class ValueCard extends StatelessWidget {
             IconButton(
               icon: Icon(Icons.delete, color: Colors.red),
               onPressed: () {
-                // Aquí usamos el constructor posicional:
+                // Ahora pasamos también el flujo (ingreso/egreso)
                 context.read<ValorBloc>().add(
-                  EliminarValorEvent(valor.periodo, valor.tipo),
+                  EliminarValorEvent(
+                    valor.periodo,
+                    valor.tipo,
+                    valor.flujo, // <-- flujo agregado
+                  ),
                 );
               },
             ),

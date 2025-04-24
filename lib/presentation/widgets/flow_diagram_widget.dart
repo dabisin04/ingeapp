@@ -8,20 +8,19 @@ class FlowDiagramWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const double spacing = 50.0;
-    // Ahora incluimos el nodo "final", por eso +(1)
     final totalWidth = spacing * (diagram.cantidadDePeriodos + 1);
 
     return Card(
       color: Colors.grey[850],
       child: SizedBox(
-        height: 200,
+        height: 350,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Container(
             width: totalWidth,
             padding: const EdgeInsets.all(8),
             child: CustomPaint(
-              size: Size(totalWidth, 200),
+              size: Size(totalWidth, 350),
               painter: _FlowPainter(diagram, spacing),
             ),
           ),
@@ -44,48 +43,163 @@ class _FlowPainter extends CustomPainter {
           ..color = Colors.white
           ..strokeWidth = 2;
 
-    // 1) Dibujar tramos de tasa de interés (incluyendo el fin)
-    for (final tasa in d.tasasDeInteres) {
-      final left = tasa.periodoInicio * spacing;
-      // +1 para cubrir inclusive el nodo final
-      final width = (tasa.periodoFin - tasa.periodoInicio + 1) * spacing;
-      final paintBar = Paint()..color = Colors.blue.withOpacity(0.3);
-      final rect = Rect.fromLTWH(left, midY - 20, width, 40);
-      canvas.drawRect(rect, paintBar);
+    // Genera colores dinámicos para cada tasa (utilizando HSL)
+    final rateColors = List.generate(
+      d.tasasDeInteres.length,
+      (i) =>
+          HSVColor.fromAHSV(
+            1,
+            (i * 360.0 / d.tasasDeInteres.length) % 360,
+            0.7,
+            0.9,
+          ).toColor(),
+    );
 
-      // Etiqueta porcentaje centrada en la franja
-      final label = TextPainter(
-        text: TextSpan(
-          text: '${tasa.valor.toStringAsFixed(1)}%',
-          style: TextStyle(color: Colors.white, fontSize: 12),
-        ),
-        textAlign: TextAlign.center,
-        textDirection: TextDirection.ltr,
-      );
-      label.layout(minWidth: width);
-      label.paint(canvas, Offset(left + (width - label.width) / 2, midY - 35));
+    // 3) Movimientos: flechas verticales invertidas (ingresos rojos abajo, egresos verdes arriba)
+    for (final m in d.movimientos) {
+      final x = m.periodo * spacing;
+      final isIngreso = m.tipo == 'Ingreso';
+      final arrowLen = 80.0;
+      final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
+      final paintMov =
+          Paint()
+            ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
+            ..strokeWidth = 2;
+      canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
+      final pathMov = Path();
+      if (isIngreso) {
+        pathMov.moveTo(x - 6, yEnd - 6);
+        pathMov.lineTo(x, yEnd);
+        pathMov.lineTo(x + 6, yEnd - 6);
+      } else {
+        pathMov.moveTo(x - 6, yEnd + 6);
+        pathMov.lineTo(x, yEnd);
+        pathMov.lineTo(x + 6, yEnd + 6);
+      }
+      canvas.drawPath(pathMov, paintMov);
+      if (m.valor != null) {
+        final tpMov = TextPainter(
+          text: TextSpan(
+            text: '\$${m.valor!.toStringAsFixed(2)}',
+            style: TextStyle(color: paintMov.color, fontSize: 12),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final yLabel = isIngreso ? yEnd + 4 : yEnd - tpMov.height - 4;
+        tpMov.paint(canvas, Offset(x - tpMov.width / 2, yLabel));
+      }
     }
 
-    // 2) Línea base completa
-    canvas.drawLine(Offset(0, midY), Offset(size.width, midY), paintLine);
+    // 4) Tasas de interés: líneas con conexiones verticales y stacking, colores únicos
+    for (int i = 0; i < d.tasasDeInteres.length; i++) {
+      final t = d.tasasDeInteres[i];
+      final color = rateColors[i];
+      final paintRate =
+          Paint()
+            ..color = color
+            ..strokeWidth = 3;
+      final startX = t.periodoInicio * spacing;
+      final endX = t.periodoFin * spacing;
+      final yRate = midY - 30 - i * 20;
+      // Conectores verticales
+      canvas.drawLine(Offset(startX, midY), Offset(startX, yRate), paintRate);
+      canvas.drawLine(Offset(endX, midY), Offset(endX, yRate), paintRate);
+      // Línea de tasa
+      canvas.drawLine(Offset(startX, yRate), Offset(endX, yRate), paintRate);
+      // Flechas
+      canvas.drawPath(
+        Path()
+          ..moveTo(endX - 5, yRate - 5)
+          ..lineTo(endX, yRate)
+          ..lineTo(endX - 5, yRate + 5),
+        paintRate,
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(startX + 5, yRate - 5)
+          ..lineTo(startX, yRate)
+          ..lineTo(startX + 5, yRate + 5),
+        paintRate,
+      );
+      // Etiqueta
+      final label = '${(t.valor * 100).toStringAsFixed(2)}%';
+      final tp = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: TextStyle(color: color, fontSize: 12),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final lx = (startX + endX) / 2 - tp.width / 2;
+      tp.paint(canvas, Offset(lx, yRate - tp.height - 4));
+    }
 
-    // 3) Marcas y etiquetas de periodo (0 ... cantidadDePeriodos)
-    final textPainter = TextPainter(
+    // 5) Valores Presente / Futuro
+    for (final v in d.valores) {
+      final x = v.periodo * spacing;
+      final isIngreso = v.flujo == 'Ingreso';
+      final arrowLen = 60.0;
+      final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
+      final paintConn =
+          Paint()
+            ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
+            ..strokeWidth = 1.5;
+      canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintConn);
+      final path = Path();
+      if (isIngreso) {
+        path.moveTo(x - 5, yEnd - 8);
+        path.lineTo(x, yEnd);
+        path.lineTo(x + 5, yEnd - 8);
+      } else {
+        path.moveTo(x - 5, yEnd + 8);
+        path.lineTo(x, yEnd);
+        path.lineTo(x + 5, yEnd + 8);
+      }
+      canvas.drawPath(path, paintConn);
+      final letter = v.tipo == 'Presente' ? 'P' : 'F';
+      final lp = TextPainter(
+        text: TextSpan(
+          text: letter,
+          style: TextStyle(
+            color: paintConn.color,
+            fontSize: 14,
+            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final ly = isIngreso ? yEnd + 4 : yEnd - lp.height - 4;
+      lp.paint(canvas, Offset(x + 8, ly));
+      if (v.valor != null) {
+        final vp = TextPainter(
+          text: TextSpan(
+            text: '\$${v.valor!.toStringAsFixed(2)}',
+            style: TextStyle(color: paintConn.color, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final vy = isIngreso ? yEnd + 4 : yEnd - vp.height - 12;
+        vp.paint(canvas, Offset(x - vp.width / 2, vy));
+      }
+    }
+
+    // 6) Línea base y ticks de periodos
+    canvas.drawLine(Offset(0, midY), Offset(size.width, midY), paintLine);
+    final tickPainter = TextPainter(
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     );
     for (int i = 0; i <= d.cantidadDePeriodos; i++) {
       final x = i * spacing;
       canvas.drawLine(Offset(x, midY - 5), Offset(x, midY + 5), paintLine);
-      textPainter.text = TextSpan(
+      tickPainter.text = TextSpan(
         text: '$i',
         style: TextStyle(color: Colors.white, fontSize: 12),
       );
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(x - textPainter.width / 2, midY + 8));
+      tickPainter.layout();
+      tickPainter.paint(canvas, Offset(x - tickPainter.width / 2, midY + 8));
     }
-
-    // 4) (Opcional) aquí irían las flechas de movimientos...
   }
 
   @override

@@ -1,3 +1,4 @@
+// lib/application/blocs/valor/valor_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:inge_app/domain/repositories/valor_repository.dart';
 import 'valor_event.dart';
@@ -14,79 +15,78 @@ class ValorBloc extends Bloc<ValorEvent, ValorState> {
     on<ObtenerValorPorPeriodoEvent>(_onObtenerValorPorPeriodo);
   }
 
-  // Handler para cargar los valores
   Future<void> _onCargarValores(
-    CargarValoresEvent event,
+    CargarValoresEvent e,
     Emitter<ValorState> emit,
   ) async {
+    print('▶️ [ValorBloc] CargarValoresEvent');
     emit(ValorLoading());
     try {
-      final valores = await repository.getValores();
-      emit(ValorLoaded(valores));
-    } catch (e) {
-      emit(ValorError('Error al cargar los valores: ${e.toString()}'));
+      final list = await repository.getValores();
+      print('✅ [ValorBloc] Valores cargados: ${list.length}');
+      emit(ValorLoaded(list));
+    } catch (ex) {
+      print('❌ [ValorBloc] Error al cargar: $ex');
+      emit(ValorError('Error al cargar los valores: $ex'));
     }
   }
 
-  // Handler para agregar un valor
   Future<void> _onAgregarValor(
-    AgregarValorEvent event,
+    AgregarValorEvent e,
     Emitter<ValorState> emit,
   ) async {
+    print('▶️ [ValorBloc] AgregarValorEvent: ${e.valor}');
     try {
-      await repository.addValor(event.valor);
-      add(CargarValoresEvent()); // Recargar lista de valores después de agregar
-    } catch (e) {
-      emit(ValorError('Error al agregar el valor: ${e.toString()}'));
+      await repository.addValor(e.valor);
+      add(CargarValoresEvent());
+    } catch (ex) {
+      print('❌ [ValorBloc] Error al agregar: $ex');
+      emit(ValorError('Error al agregar el valor: $ex'));
     }
   }
 
-  // Handler para editar un valor
   Future<void> _onEditarValor(
-    EditarValorEvent event,
+    EditarValorEvent e,
     Emitter<ValorState> emit,
   ) async {
+    print('▶️ [ValorBloc] EditarValorEvent: ${e.valorActualizado}');
     try {
-      await repository.updateValor(event.valorActualizado);
-      add(CargarValoresEvent()); // Recargar lista de valores después de editar
-    } catch (e) {
-      emit(ValorError('Error al editar el valor: ${e.toString()}'));
+      await repository.updateValor(e.valorActualizado);
+      add(CargarValoresEvent());
+    } catch (ex) {
+      print('❌ [ValorBloc] Error al editar: $ex');
+      emit(ValorError('Error al editar el valor: $ex'));
     }
   }
 
-  // Handler para eliminar un valor
   Future<void> _onEliminarValor(
-    EliminarValorEvent event,
+    EliminarValorEvent e,
     Emitter<ValorState> emit,
   ) async {
+    print(
+      '▶️ [ValorBloc] EliminarValorEvent: periodo=${e.periodo}, tipo=${e.tipo}, flujo=${e.flujo}',
+    );
     try {
-      await repository.deleteValor(event.periodo, event.tipo);
-      add(
-        CargarValoresEvent(),
-      ); // Recargar lista de valores después de eliminar
-    } catch (e) {
-      emit(ValorError('Error al eliminar el valor: ${e.toString()}'));
+      await repository.deleteValor(e.periodo, e.tipo, e.flujo);
+      emit(ValorDeleted(e.periodo, e.tipo, e.flujo));
+      add(CargarValoresEvent());
+    } catch (ex) {
+      print('❌ [ValorBloc] Error al eliminar: $ex');
+      emit(ValorError('Error al eliminar el valor: $ex'));
     }
   }
 
-  // Handler para obtener un valor por periodo
   Future<void> _onObtenerValorPorPeriodo(
-    ObtenerValorPorPeriodoEvent event,
+    ObtenerValorPorPeriodoEvent e,
     Emitter<ValorState> emit,
   ) async {
+    print('▶️ [ValorBloc] ObtenerValorPorPeriodoEvent: periodo=${e.periodo}');
     try {
-      final valor = await repository.getValorPorPeriodo(event.periodo);
-      if (valor != null) {
-        emit(ValorPorPeriodoLoaded(valor));
-      } else {
-        emit(
-          ValorError('Valor no encontrado para el periodo ${event.periodo}.'),
-        );
-      }
-    } catch (e) {
-      emit(
-        ValorError('Error al obtener el valor por periodo: ${e.toString()}'),
-      );
+      final v = await repository.getValorPorPeriodo(e.periodo);
+      emit(ValorPorPeriodoLoaded(v));
+    } catch (ex) {
+      print('❌ [ValorBloc] Error al obtener por periodo: $ex');
+      emit(ValorError('Error al obtener el valor por periodo: $ex'));
     }
   }
 }

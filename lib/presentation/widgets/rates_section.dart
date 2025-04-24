@@ -4,6 +4,7 @@ import 'package:inge_app/application/blocs/tasa_de_interes/tasa_de_interes_bloc.
 import 'package:inge_app/application/blocs/tasa_de_interes/tasa_de_interes_state.dart';
 import 'package:inge_app/presentation/widgets/rate_card.dart';
 import 'package:inge_app/presentation/widgets/rate_card_dialog.dart';
+import 'package:inge_app/domain/repositories/unidad_de_tiempo_repository.dart';
 
 class RatesSection extends StatelessWidget {
   @override
@@ -25,11 +26,17 @@ class RatesSection extends StatelessWidget {
               ElevatedButton.icon(
                 icon: Icon(Icons.add),
                 label: Text('Añadir Tasa'),
-                onPressed:
-                    () => showDialog(
-                      context: context,
-                      builder: (_) => RateCardDialog(),
-                    ),
+                onPressed: () {
+                  final unidadDeTiempoRepository =
+                      context.read<UnidadDeTiempoRepository>();
+                  showDialog(
+                    context: context,
+                    builder:
+                        (_) => RateCardDialog(
+                          unidadDeTiempoRepository: unidadDeTiempoRepository,
+                        ),
+                  );
+                },
               ),
             ],
           );
