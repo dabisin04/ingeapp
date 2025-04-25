@@ -56,39 +56,53 @@ class _FlowPainter extends CustomPainter {
     );
 
     // 3) Movimientos: flechas verticales invertidas (ingresos rojos abajo, egresos verdes arriba)
-    for (final m in d.movimientos) {
-      final x = m.periodo * spacing;
-      final isIngreso = m.tipo == 'Ingreso';
-      final arrowLen = 80.0;
-      final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
-      final paintMov =
-          Paint()
-            ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
-            ..strokeWidth = 2;
-      canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
-      final pathMov = Path();
-      if (isIngreso) {
-        pathMov.moveTo(x - 6, yEnd - 6);
-        pathMov.lineTo(x, yEnd);
-        pathMov.lineTo(x + 6, yEnd - 6);
-      } else {
-        pathMov.moveTo(x - 6, yEnd + 6);
-        pathMov.lineTo(x, yEnd);
-        pathMov.lineTo(x + 6, yEnd + 6);
-      }
-      canvas.drawPath(pathMov, paintMov);
-      if (m.valor != null) {
-        final tpMov = TextPainter(
-          text: TextSpan(
-            text: '\$${m.valor!.toStringAsFixed(2)}',
-            style: TextStyle(color: paintMov.color, fontSize: 12),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final yLabel = isIngreso ? yEnd + 4 : yEnd - tpMov.height - 4;
-        tpMov.paint(canvas, Offset(x - tpMov.width / 2, yLabel));
-      }
+    final movimientosAgrupados = <int, Map<String, double>>{};
+
+for (final m in d.movimientos) {
+  movimientosAgrupados.putIfAbsent(m.periodo, () => {});
+  movimientosAgrupados[m.periodo]![m.tipo] =
+      (movimientosAgrupados[m.periodo]![m.tipo] ?? 0) + (m.valor ?? 0);
+}
+
+for (final entry in movimientosAgrupados.entries) {
+  final periodo = entry.key;
+  final tipos = entry.value;
+
+  for (final tipo in tipos.entries) {
+    final x = periodo * spacing;
+    final isIngreso = tipo.key == 'Ingreso';
+    final valor = tipo.value;
+    final arrowLen = 80.0;
+    final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
+    final paintMov = Paint()
+      ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
+      ..strokeWidth = 2;
+
+    canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
+
+    final pathMov = Path();
+    if (isIngreso) {
+      pathMov.moveTo(x - 6, yEnd - 6);
+      pathMov.lineTo(x, yEnd);
+      pathMov.lineTo(x + 6, yEnd - 6);
+    } else {
+      pathMov.moveTo(x - 6, yEnd + 6);
+      pathMov.lineTo(x, yEnd);
+      pathMov.lineTo(x + 6, yEnd + 6);
     }
+    canvas.drawPath(pathMov, paintMov);
+
+    final tpMov = TextPainter(
+      text: TextSpan(
+        text: '\$${valor.toStringAsFixed(2)}',
+        style: TextStyle(color: paintMov.color, fontSize: 12),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    final yLabel = isIngreso ? yEnd + 4 : yEnd - tpMov.height - 4;
+    tpMov.paint(canvas, Offset(x - tpMov.width / 2, yLabel));
+  }
+}
 
     // 4) Tasas de interés: líneas con conexiones verticales y stacking, colores únicos
     for (int i = 0; i < d.tasasDeInteres.length; i++) {
