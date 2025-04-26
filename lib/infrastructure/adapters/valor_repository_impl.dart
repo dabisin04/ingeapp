@@ -1,4 +1,3 @@
-// lib/adapters/valor_adapter.dart
 import 'package:inge_app/domain/entities/valor.dart';
 import 'package:inge_app/domain/repositories/valor_repository.dart';
 
@@ -22,20 +21,25 @@ class ValorAdapter implements ValorRepository {
   @override
   Future<void> updateValor(Valor valor) async {
     print(
-      '🔄 [ValorAdapter] updateValor: periodo=${valor.periodo}, tipo=${valor.tipo}, flujo=${valor.flujo}, valor=${valor.valor}',
+      '🔄 [ValorAdapter] upsertValor: periodo=${valor.periodo}, '
+      'tipo=${valor.tipo}, flujo=${valor.flujo}, valor=${valor.valor}',
     );
+
     final index = _valores.indexWhere(
       (v) =>
           v.periodo == valor.periodo &&
           v.tipo == valor.tipo &&
           v.flujo == valor.flujo,
     );
+
     if (index != -1) {
+      // Si existe, actualiza
       _valores[index] = valor;
+      print('   ↪️ Registro existente actualizado.');
     } else {
-      throw Exception(
-        'Valor no encontrado para periodo ${valor.periodo}, tipo ${valor.tipo}, flujo ${valor.flujo}',
-      );
+      // Si no existe, lo agrega
+      _valores.add(valor);
+      print('   ➕ Registro no encontrado, insertado como nuevo.');
     }
   }
 

@@ -1,10 +1,14 @@
+// lib/presentation/widgets/rate_card_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:inge_app/domain/entities/tasa_de_interes.dart';
+
 import 'package:inge_app/application/blocs/tasa_de_interes/tasa_de_interes_bloc.dart';
 import 'package:inge_app/application/blocs/tasa_de_interes/tasa_de_interes_event.dart';
+import 'package:inge_app/domain/entities/tasa_de_interes.dart';
 import 'package:inge_app/domain/entities/unidad_de_tiempo.dart';
 import 'package:inge_app/domain/repositories/unidad_de_tiempo_repository.dart';
+
+const _kAplicaOpciones = ['Todos', 'Ingreso', 'Egreso'];
 
 class RateCardDialog extends StatefulWidget {
   final TasaDeInteres? tasa;
@@ -17,38 +21,47 @@ class RateCardDialog extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _RateCardDialogState createState() => _RateCardDialogState();
+  State<RateCardDialog> createState() => _RateCardDialogState();
 }
 
 class _RateCardDialogState extends State<RateCardDialog> {
+  // ─ Text controllers ─
   final _valorCtrl = TextEditingController();
   final _iniCtrl = TextEditingController();
   final _finCtrl = TextEditingController();
 
+  // ─ Estado de combos/switches ─
   int _periodicidadId = 1;
   int _capitalizacionId = 1;
   bool _isAnticipada = false;
 
-  List<UnidadDeTiempo> _unidadesDeTiempo = [];
+  // ─ Campo NUEVO: a qué flujo aplica la tasa ─
+  String _aplicaA = 'Todos';
+
+  // ─ Datos auxiliares ─
+  List<UnidadDeTiempo> _unidades = [];
 
   @override
   void initState() {
     super.initState();
-    _loadUnidadesDeTiempo();
-    if (widget.tasa != null) {
-      _valorCtrl.text = widget.tasa!.valor.toString();
-      _iniCtrl.text = widget.tasa!.periodoInicio.toString();
-      _finCtrl.text = widget.tasa!.periodoFin.toString();
-      _periodicidadId = widget.tasa!.periodicidad.id;
-      _capitalizacionId = widget.tasa!.capitalizacion.id;
-      _isAnticipada = widget.tasa!.tipo.toLowerCase() == 'anticipada';
-    }
+    _cargarUnidades().then((_) {
+      if (widget.tasa != null) _precargarDatos(widget.tasa!);
+    });
   }
 
-  Future<void> _loadUnidadesDeTiempo() async {
-    _unidadesDeTiempo =
-        await widget.unidadDeTiempoRepository.obtenerUnidadesDeTiempo();
-    setState(() {});
+  Future<void> _cargarUnidades() async {
+    _unidades = await widget.unidadDeTiempoRepository.obtenerUnidadesDeTiempo();
+    if (mounted) setState(() {});
+  }
+
+  void _precargarDatos(TasaDeInteres t) {
+    _valorCtrl.text = (t.valor * 100).toString();
+    _iniCtrl.text = t.periodoInicio.toString();
+    _finCtrl.text = t.periodoFin.toString();
+    _periodicidadId = t.periodicidad.id;
+    _capitalizacionId = t.capitalizacion.id;
+    _isAnticipada = t.tipo.toLowerCase() == 'anticipada';
+    _aplicaA = t.aplicaA; // ← NUEVO
   }
 
   @override
@@ -59,76 +72,55 @@ class _RateCardDialogState extends State<RateCardDialog> {
     super.dispose();
   }
 
+  /* ─────────────────── Guardar ─────────────────── */
+
   void _onSave() {
-    final valorText = _valorCtrl.text;
-    final iniText = _iniCtrl.text;
-    final finText = _finCtrl.text;
+    // Validaciones básicas …
+    final i = int.tryParse(_iniCtrl.text.trim());
+    final f = int.tryParse(_finCtrl.text.trim());
+    final raw = double.tryParse(_valorCtrl.text.trim());
 
-    if (iniText.isEmpty || finText.isEmpty) {
+    if (i == null || f == null || raw == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Los periodos son obligatorios')),
+        const SnackBar(content: Text('Revisa valor y periodos')),
       );
       return;
     }
 
-    final i = int.tryParse(iniText);
-    final f = int.tryParse(finText);
-    if (i == null || f == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Los periodos deben ser números enteros')),
-      );
-      return;
-    }
-
-    final raw = valorText.isEmpty ? 0.0 : double.tryParse(valorText);
-    final p = raw != null ? raw / 100 : null;
-    if (p == null && !valorText.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('El valor debe ser un número válido')),
-      );
-      return;
-    }
-
-    final periodicidad = _unidadesDeTiempo.firstWhere(
-      (u) => u.id == _periodicidadId,
-    );
-    final capitalizacion = _unidadesDeTiempo.firstWhere(
-      (u) => u.id == _capitalizacionId,
-    );
+    final periodicidad = _unidades.firstWhere((u) => u.id == _periodicidadId);
+    final capitaliz = _unidades.firstWhere((u) => u.id == _capitalizacionId);
     final tipoStr = _isAnticipada ? 'Anticipada' : 'Vencida';
 
     final nueva = TasaDeInteres(
       id: widget.tasa?.id ?? DateTime.now().millisecondsSinceEpoch,
-      valor: p ?? 0.0,
+      valor: raw / 100, // se almacena como decimal
       periodicidad: periodicidad,
-      capitalizacion: capitalizacion,
+      capitalizacion: capitaliz,
       tipo: tipoStr,
       periodoInicio: i,
       periodoFin: f,
+      aplicaA: _aplicaA, // ← NUEVO
     );
 
     final bloc = context.read<TasaInteresBloc>();
-    if (widget.tasa == null) {
-      bloc.add(AgregarTasaInteres(nueva));
-    } else {
-      bloc.add(EditarTasaInteres(nueva.id, nueva));
-    }
+    widget.tasa == null
+        ? bloc.add(AgregarTasaInteres(nueva))
+        : bloc.add(EditarTasaInteres(nueva.id, nueva));
+
     Navigator.of(context).pop();
   }
 
+  /* ───────────────────  Build  ─────────────────── */
+
   @override
   Widget build(BuildContext context) {
-    if (_unidadesDeTiempo.isEmpty) {
+    if (_unidades.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final unidadPeriodicidad = _unidadesDeTiempo.firstWhere(
-      (u) => u.id == _periodicidadId,
-    );
-    final capitalizables =
-        _unidadesDeTiempo
-            .where((u) => u.valor >= unidadPeriodicidad.valor)
-            .toList();
+    // Capitalizaciones válidas ≥ periodicidad elegida
+    final per = _unidades.firstWhere((u) => u.id == _periodicidadId);
+    final caps = _unidades.where((u) => u.valor >= per.valor).toList();
 
     return AlertDialog(
       title: Text(widget.tasa == null ? 'Añadir Tasa' : 'Editar Tasa'),
@@ -136,13 +128,14 @@ class _RateCardDialogState extends State<RateCardDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Valor %
             TextField(
               controller: _valorCtrl,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(labelText: 'Valor (%)'),
             ),
+            // Periodos
             TextField(
               controller: _iniCtrl,
               keyboardType: TextInputType.number,
@@ -153,51 +146,59 @@ class _RateCardDialogState extends State<RateCardDialog> {
               keyboardType: TextInputType.number,
               decoration: const InputDecoration(labelText: 'Periodo Fin'),
             ),
+            // Periodicidad
             DropdownButtonFormField<int>(
-              value: _periodicidadId,
-              items:
-                  _unidadesDeTiempo
-                      .map(
-                        (u) => DropdownMenuItem(
-                          value: u.id,
-                          child: Text(u.nombre),
-                        ),
-                      )
-                      .toList(),
-              onChanged:
-                  (v) => setState(() {
-                    _periodicidadId = v!;
-                    final nuevaPer = _unidadesDeTiempo.firstWhere(
-                      (u) => u.id == _periodicidadId,
-                    );
-                    final nuevaCaps =
-                        _unidadesDeTiempo
-                            .where((u) => u.valor >= nuevaPer.valor)
-                            .toList();
-                    if (!nuevaCaps.any((c) => c.id == _capitalizacionId)) {
-                      _capitalizacionId = nuevaCaps.first.id;
-                    }
-                  }),
               decoration: const InputDecoration(labelText: 'Periodicidad'),
+              value: _periodicidadId,
+              items: _unidades
+                  .map((u) =>
+                      DropdownMenuItem(value: u.id, child: Text(u.nombre)))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                _periodicidadId = v!;
+                // ajusta capitalización si quedó fuera de rango
+                final nuevaPer = _unidades.firstWhere((u) => u.id == v);
+                final capsValid =
+                    _unidades.where((u) => u.valor >= nuevaPer.valor).toList();
+                if (!capsValid.any((c) => c.id == _capitalizacionId)) {
+                  _capitalizacionId = capsValid.first.id;
+                }
+              }),
             ),
+            // Capitalización
             DropdownButtonFormField<int>(
-              value: _capitalizacionId,
-              items:
-                  capitalizables
-                      .map(
-                        (u) => DropdownMenuItem(
-                          value: u.id,
-                          child: Text(u.nombre),
-                        ),
-                      )
-                      .toList(),
-              onChanged: (v) => setState(() => _capitalizacionId = v!),
               decoration: const InputDecoration(labelText: 'Capitalización'),
+              value: _capitalizacionId,
+              items: caps
+                  .map((u) =>
+                      DropdownMenuItem(value: u.id, child: Text(u.nombre)))
+                  .toList(),
+              onChanged: (v) => setState(() => _capitalizacionId = v!),
             ),
+            // Anticipada / Vencida
             SwitchListTile(
               title: const Text('Anticipada'),
+              dense: true,
               value: _isAnticipada,
               onChanged: (v) => setState(() => _isAnticipada = v),
+            ),
+            const Divider(),
+            // Radio-buttons “Aplica a”
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Aplica a',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                ..._kAplicaOpciones.map(
+                  (op) => RadioListTile<String>(
+                    dense: true,
+                    title: Text(op),
+                    value: op,
+                    groupValue: _aplicaA,
+                    onChanged: (v) => setState(() => _aplicaA = v!),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

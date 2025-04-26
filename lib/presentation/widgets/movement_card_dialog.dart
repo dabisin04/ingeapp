@@ -21,44 +21,34 @@ class _MovementCardDialogState extends State<MovementCardDialog> {
   void initState() {
     super.initState();
     if (widget.mov != null) {
-      _periodoCtrl.text = widget.mov!.periodo.toString();
-      _valorCtrl.text = widget.mov!.valor.toString();
+      // Si ya hay un movimiento, cargamos su periodo (si existe) o dejamos vacío
+      _periodoCtrl.text = widget.mov!.periodo?.toString() ?? '';
+      _valorCtrl.text = widget.mov!.valor?.toString() ?? '';
       _tipo = widget.mov!.tipo;
     }
   }
 
-  @override
-  void dispose() {
-    _periodoCtrl.dispose();
-    _valorCtrl.dispose();
-    super.dispose();
-  }
-
   void _onSave() {
-    final periodoText = _periodoCtrl.text;
-    final valorText = _valorCtrl.text;
+    // Nota: ya no retornamos si periodo está vacío
+    final periodoText = _periodoCtrl.text.trim();
+    final valorText = _valorCtrl.text.trim();
 
-    if (periodoText.isEmpty) {
-      return;
-    }
+    // parsear periodo sólo si no está vacío
+    final int? periodo = periodoText.isEmpty ? null : int.tryParse(periodoText);
 
-    final periodo = int.tryParse(periodoText);
-    if (periodo == null) {
-      return;
-    }
+    // parsear valor igual que antes (0.0 si vacío)
+    final double valorNum =
+        valorText.isEmpty ? 0.0 : (double.tryParse(valorText) ?? 0.0);
 
-    final valorNum = valorText.isEmpty ? 0.0 : double.tryParse(valorText);
-    if (valorNum == null && !valorText.isEmpty) {
-      return;
-    }
-
-    final bloc = BlocProvider.of<MovimientoBloc>(context);
+    // crear el objeto con periodo nullable
     final nuevo = Movimiento(
       id: widget.mov?.id ?? DateTime.now().millisecondsSinceEpoch,
       periodo: periodo,
-      valor: valorNum ?? 0.0,
+      valor: valorNum,
       tipo: _tipo,
     );
+
+    final bloc = context.read<MovimientoBloc>();
     if (widget.mov == null) {
       bloc.add(AgregarMovimiento(nuevo));
     } else {
@@ -70,41 +60,49 @@ class _MovementCardDialogState extends State<MovementCardDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(
-        widget.mov == null ? 'Añadir Movimiento' : 'Editar Movimiento',
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DropdownButtonFormField<String>(
-              value: _tipo,
-              items:
-                  ['Ingreso', 'Egreso']
-                      .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                      .toList(),
-              onChanged: (v) => setState(() => _tipo = v!),
-              decoration: InputDecoration(labelText: 'Tipo'),
+      title:
+          Text(widget.mov == null ? 'Añadir Movimiento' : 'Editar Movimiento'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DropdownButtonFormField<String>(
+            value: _tipo,
+            items: ['Ingreso', 'Egreso']
+                .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                .toList(),
+            decoration: const InputDecoration(labelText: 'Tipo'),
+            onChanged: (v) => setState(() => _tipo = v!),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _periodoCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Periodo (opcional)',
+              hintText: 'Déjalo vacío si no aplica',
+              border: OutlineInputBorder(),
             ),
-            TextField(
-              controller: _periodoCtrl,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Periodo'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _valorCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Valor (\$)',
+              border: OutlineInputBorder(),
             ),
-            TextField(
-              controller: _valorCtrl,
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Valor (\$)'),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text('Cancelar'),
+          child: const Text('Cancelar'),
         ),
-        ElevatedButton(onPressed: _onSave, child: Text('Guardar')),
+        ElevatedButton(
+          onPressed: _onSave,
+          child: const Text('Guardar'),
+        ),
       ],
     );
   }

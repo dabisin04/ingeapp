@@ -1,14 +1,34 @@
+import 'dart:convert';
+
 class Movimiento {
   final int id;
-  final double?
-  valor; // Valor del ingreso o egreso (puede ser nulo si es opcional)
-  final String tipo; // Tipo: "Ingreso" o "Egreso"
-  final int periodo; // Periodo en el que ocurre el movimiento
+  final double? valor;
+  final String tipo;
+  final int? periodo; // ahora nullable
 
   Movimiento({
     required this.id,
-    this.valor, // Puede ser nulo si es un ingreso o egreso posterior
+    this.valor,
     required this.tipo,
-    required this.periodo,
+    this.periodo, // opcional
   });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'valor': valor,
+        'tipo': tipo,
+        'periodo': periodo,
+      };
+
+  factory Movimiento.fromMap(Map<String, dynamic> map) => Movimiento(
+        id: map['id'] as int,
+        valor: (map['valor'] as num?)?.toDouble(),
+        tipo: map['tipo'] as String,
+        periodo: map['periodo'] != null ? map['periodo'] as int : null,
+      );
+
+  String encode() => jsonEncode(toMap());
+
+  static Movimiento decode(String source) =>
+      Movimiento.fromMap(jsonDecode(source) as Map<String, dynamic>);
 }

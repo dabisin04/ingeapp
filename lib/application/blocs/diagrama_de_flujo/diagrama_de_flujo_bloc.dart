@@ -1,8 +1,12 @@
+// lib/application/blocs/diagrama_de_flujo/diagrama_de_flujo_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
 import 'package:inge_app/domain/repositories/diagrama_de_flujo_repository.dart';
+
 import 'diagrama_de_flujo_event.dart';
 import 'diagrama_de_flujo_state.dart';
+
+import 'package:inge_app/infrastructure/utils/financial_analyzer.dart'; // ← NUEVO
 
 class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
   final FlowDiagramRepository repository;
@@ -15,145 +19,129 @@ class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
     on<UpdateTasasEvent>(_onUpdateTasas);
     on<UpdateValoresEvent>(_onUpdateValores);
     on<UpdateMovimientosEvent>(_onUpdateMovimientos);
+    on<UpdateDescriptionEvent>(_onUpdateDescription);
+    on<AnalyzeDiagramEvent>(_onAnalyzeDiagram);
+    on<UpdateFocalPeriodEvent>(_onUpdateFocalPeriod);
   }
 
+  // ───────────────────────── helpers ──────────────────────────
+  FlowDiagramLoaded _loadedState(DiagramaDeFlujo diagram) =>
+      FlowDiagramLoaded(diagram, FinancialAnalyzer.branch(diagram));
+  // ────────────────────────── handlers ─────────────────────────
+
   Future<void> _onInitializeDiagram(
-    InitializeDiagramEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
-    print(
-      '🔹 [FlowDiagramBloc] InitializeDiagramEvent recibido → periods: ${event.periods}, unit: ${event.unit}',
-    );
+      InitializeDiagramEvent event, Emitter<FlowDiagramState> emit) async {
     emit(FlowDiagramLoading());
     try {
       await repository.initializeDiagram(
-        periods: event.periods,
-        unit: event.unit,
-      );
+          periods: event.periods, unit: event.unit);
       final diagram = await repository.getDiagram();
-      print('✔️ Diagrama inicializado: $diagram');
-      emit(FlowDiagramLoaded(diagram));
-    } catch (e, st) {
-      print('❌ Error al inicializar: $e\n$st');
-      emit(
-        FlowDiagramError('Error al inicializar el diagrama: ${e.toString()}'),
-      );
+      emit(_loadedState(diagram));
+    } catch (e) {
+      emit(FlowDiagramError('Error al inicializar: $e'));
     }
   }
 
   Future<void> _onFetchDiagram(
-    FetchDiagramEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
-    print('🔹 [FlowDiagramBloc] FetchDiagramEvent recibido');
+      FetchDiagramEvent event, Emitter<FlowDiagramState> emit) async {
     emit(FlowDiagramLoading());
     try {
       final diagram = await repository.getDiagram();
-      print('✔️ Diagrama obtenido: $diagram');
-      emit(FlowDiagramLoaded(diagram));
-    } catch (e, st) {
-      print('❌ Error al obtener el diagrama: $e\n$st');
-      emit(FlowDiagramError('Error al obtener el diagrama: ${e.toString()}'));
+      emit(_loadedState(diagram));
+    } catch (e) {
+      emit(FlowDiagramError('Error al obtener el diagrama: $e'));
     }
   }
 
   Future<void> _onUpdatePeriods(
-    UpdatePeriodsEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
-    print(
-      '🔹 [FlowDiagramBloc] UpdatePeriodsEvent recibido → periods: ${event.periods}',
-    );
+      UpdatePeriodsEvent event, Emitter<FlowDiagramState> emit) async {
     emit(FlowDiagramLoading());
     try {
       await repository.updatePeriods(event.periods);
-      final diagram = await repository.getDiagram();
-      print('✔️ Periodos actualizados en diagrama: $diagram');
-      emit(FlowDiagramLoaded(diagram));
-    } catch (e, st) {
-      print('❌ Error al actualizar periodos: $e\n$st');
-      emit(
-        FlowDiagramError('Error al actualizar los periodos: ${e.toString()}'),
-      );
+      emit(_loadedState(await repository.getDiagram()));
+    } catch (e) {
+      emit(FlowDiagramError('Error al actualizar periodos: $e'));
     }
   }
 
   Future<void> _onClearDiagram(
-    ClearDiagramEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
-    print('🔹 [FlowDiagramBloc] ClearDiagramEvent recibido');
+      ClearDiagramEvent event, Emitter<FlowDiagramState> emit) async {
     emit(FlowDiagramLoading());
     try {
       await repository.clearDiagram();
-      print('✔️ Diagrama limpiado');
       emit(FlowDiagramInitial());
-    } catch (e, st) {
-      print('❌ Error al limpiar el diagrama: $e\n$st');
-      emit(FlowDiagramError('Error al limpiar el diagrama: ${e.toString()}'));
+    } catch (e) {
+      emit(FlowDiagramError('Error al limpiar el diagrama: $e'));
     }
   }
 
   Future<void> _onUpdateTasas(
-    UpdateTasasEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
-    // Sólo actualizamos si ya tenemos el diagrama cargado
+      UpdateTasasEvent event, Emitter<FlowDiagramState> emit) async {
     if (state is FlowDiagramLoaded) {
-      final current = (state as FlowDiagramLoaded).diagrama;
-      // Reconstruimos una copia con las nuevas tasas
-      final updated = DiagramaDeFlujo(
-        id: current.id,
-        unidadDeTiempo: current.unidadDeTiempo,
-        cantidadDePeriodos: current.cantidadDePeriodos,
-        tasasDeInteres: event.tasas,
-        movimientos: current.movimientos,
-        valores: current.valores,
-      );
-      // Emitimos de nuevo
-      emit(FlowDiagramLoaded(updated));
+      final updated = (state as FlowDiagramLoaded)
+          .diagrama
+          .copyWith(tasasDeInteres: event.tasas);
+      emit(_loadedState(updated));
     }
   }
 
   Future<void> _onUpdateValores(
-    UpdateValoresEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
+      UpdateValoresEvent event, Emitter<FlowDiagramState> emit) async {
     if (state is FlowDiagramLoaded) {
-      final current = (state as FlowDiagramLoaded).diagrama;
-      emit(
-        FlowDiagramLoaded(
-          DiagramaDeFlujo(
-            id: current.id,
-            unidadDeTiempo: current.unidadDeTiempo,
-            cantidadDePeriodos: current.cantidadDePeriodos,
-            tasasDeInteres: current.tasasDeInteres,
-            movimientos: current.movimientos,
-            valores: event.valores,
-          ),
-        ),
-      );
+      final updated = (state as FlowDiagramLoaded)
+          .diagrama
+          .copyWith(valores: event.valores);
+      emit(_loadedState(updated));
     }
   }
 
   Future<void> _onUpdateMovimientos(
-    UpdateMovimientosEvent event,
-    Emitter<FlowDiagramState> emit,
-  ) async {
+      UpdateMovimientosEvent event, Emitter<FlowDiagramState> emit) async {
     if (state is FlowDiagramLoaded) {
-      final current = (state as FlowDiagramLoaded).diagrama;
-      emit(
-        FlowDiagramLoaded(
-          DiagramaDeFlujo(
-            id: current.id,
-            unidadDeTiempo: current.unidadDeTiempo,
-            cantidadDePeriodos: current.cantidadDePeriodos,
-            tasasDeInteres: current.tasasDeInteres,
-            movimientos: event.movimientos,
-            valores: current.valores,
-          ),
-        ),
-      );
+      final updated = (state as FlowDiagramLoaded)
+          .diagrama
+          .copyWith(movimientos: event.movimientos);
+      emit(_loadedState(updated));
+    }
+  }
+
+  Future<void> _onUpdateDescription(
+      UpdateDescriptionEvent event, Emitter<FlowDiagramState> emit) async {
+    emit(FlowDiagramLoading());
+    try {
+      await repository.updateDescription(event.descripcion);
+      emit(_loadedState(await repository.getDiagram()));
+    } catch (e) {
+      emit(FlowDiagramError('Error al actualizar descripción: $e'));
+    }
+  }
+
+  Future<void> _onAnalyzeDiagram(
+      AnalyzeDiagramEvent event, Emitter<FlowDiagramState> emit) async {
+    final diagram = state is FlowDiagramLoaded
+        ? (state as FlowDiagramLoaded).diagrama
+        : null;
+    if (diagram == null) {
+      emit(AnalysisFailure('No hay diagrama para analizar'));
+      return;
+    }
+    emit(AnalysisInProgress());
+    try {
+      final result = await repository.analyzeDiagram(diagram);
+      emit(AnalysisSuccess(result));
+    } catch (e) {
+      emit(AnalysisFailure('Error al analizar: $e'));
+    }
+  }
+
+  Future<void> _onUpdateFocalPeriod(
+      UpdateFocalPeriodEvent event, Emitter<FlowDiagramState> emit) async {
+    emit(FlowDiagramLoading());
+    try {
+      await repository.updateFocalPeriod(event.periodoFocal);
+      emit(_loadedState(await repository.getDiagram()));
+    } catch (e) {
+      emit(FlowDiagramError('Error al actualizar periodo focal: $e'));
     }
   }
 }

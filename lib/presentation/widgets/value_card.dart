@@ -26,25 +26,25 @@ class ValueCard extends StatelessWidget {
           children: [
             IconButton(
               icon: Icon(Icons.edit, color: Colors.blue),
-              onPressed:
-                  () => showDialog(
-                    context: context,
-                    builder: (_) => ValueCardDialog(valor: valor),
-                  ),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => ValueCardDialog(valor: valor),
+              ),
             ),
-            IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
-              onPressed: () {
-                // Ahora pasamos también el flujo (ingreso/egreso)
-                context.read<ValorBloc>().add(
-                  EliminarValorEvent(
-                    valor.periodo,
-                    valor.tipo,
-                    valor.flujo, // <-- flujo agregado
-                  ),
-                );
-              },
-            ),
+            if (valor.periodo != null)
+              IconButton(
+                icon: Icon(Icons.delete, color: Colors.red),
+                onPressed: () {
+                  context.read<ValorBloc>().add(
+                        // desempacamos con `!` porque ya filtramos null
+                        EliminarValorEvent(
+                          valor.periodo!, // <<< aquí
+                          valor.tipo,
+                          valor.flujo,
+                        ),
+                      );
+                },
+              ),
           ],
         ),
       ),

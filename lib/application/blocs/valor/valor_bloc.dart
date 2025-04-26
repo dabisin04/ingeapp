@@ -52,11 +52,18 @@ class ValorBloc extends Bloc<ValorEvent, ValorState> {
     print('▶️ [ValorBloc] EditarValorEvent: ${e.valorActualizado}');
     try {
       await repository.updateValor(e.valorActualizado);
-      add(CargarValoresEvent());
-    } catch (ex) {
-      print('❌ [ValorBloc] Error al editar: $ex');
-      emit(ValorError('Error al editar el valor: $ex'));
+    } on Exception catch (ex) {
+      final msg = ex.toString();
+      if (msg.contains('no encontrado')) {
+        print('⚠️ Valor no existente – insertando en su lugar');
+        await repository.addValor(e.valorActualizado);
+      } else {
+        print('❌ [ValorBloc] Error al editar: $ex');
+        emit(ValorError('Error al editar el valor: $ex'));
+        return;
+      }
     }
+    add(CargarValoresEvent());
   }
 
   Future<void> _onEliminarValor(

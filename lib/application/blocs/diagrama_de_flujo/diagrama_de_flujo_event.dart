@@ -38,3 +38,16 @@ class UpdateMovimientosEvent extends FlowDiagramEvent {
   final List<Movimiento> movimientos;
   UpdateMovimientosEvent(this.movimientos);
 }
+
+class UpdateDescriptionEvent extends FlowDiagramEvent {
+  final String descripcion;
+
+  UpdateDescriptionEvent(this.descripcion);
+}
+
+class AnalyzeDiagramEvent extends FlowDiagramEvent {}
+
+class UpdateFocalPeriodEvent extends FlowDiagramEvent {
+  final int? periodoFocal;
+  UpdateFocalPeriodEvent(this.periodoFocal);
+}

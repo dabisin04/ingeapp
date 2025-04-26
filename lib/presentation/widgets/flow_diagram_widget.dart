@@ -38,55 +38,55 @@ class _FlowPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final midY = size.height / 2;
-    final paintLine =
-        Paint()
-          ..color = Colors.white
-          ..strokeWidth = 2;
+    final paintLine = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2;
 
     // Genera colores dinámicos para cada tasa (utilizando HSL)
     final rateColors = List.generate(
       d.tasasDeInteres.length,
-      (i) =>
-          HSVColor.fromAHSV(
-            1,
-            (i * 360.0 / d.tasasDeInteres.length) % 360,
-            0.7,
-            0.9,
-          ).toColor(),
+      (i) => HSVColor.fromAHSV(
+        1,
+        (i * 360.0 / d.tasasDeInteres.length) % 360,
+        0.7,
+        0.9,
+      ).toColor(),
     );
+
+    final focal = d.periodoFocal ?? 0;
 
     // 3) Movimientos: flechas verticales invertidas (ingresos rojos abajo, egresos verdes arriba)
     for (final m in d.movimientos) {
-      final x = m.periodo * spacing;
+      final period = m.periodo ?? focal;
+      final x = period * spacing;
       final isIngreso = m.tipo == 'Ingreso';
       final arrowLen = 80.0;
       final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
-      final paintMov =
-          Paint()
-            ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
-            ..strokeWidth = 2;
+      final paintMov = Paint()
+        ..color = isIngreso ? Colors.redAccent : Colors.greenAccent
+        ..strokeWidth = 2;
+
+      // Línea principal
       canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
-      final pathMov = Path();
-      if (isIngreso) {
-        pathMov.moveTo(x - 6, yEnd - 6);
-        pathMov.lineTo(x, yEnd);
-        pathMov.lineTo(x + 6, yEnd - 6);
-      } else {
-        pathMov.moveTo(x - 6, yEnd + 6);
-        pathMov.lineTo(x, yEnd);
-        pathMov.lineTo(x + 6, yEnd + 6);
-      }
+
+      // Cabeza de flecha
+      final pathMov = Path()
+        ..moveTo(x + (isIngreso ? -6 : -6), yEnd + (isIngreso ? -6 : 6))
+        ..lineTo(x, yEnd)
+        ..lineTo(x + 6, yEnd + (isIngreso ? -6 : 6));
       canvas.drawPath(pathMov, paintMov);
+
+      // Valor
       if (m.valor != null) {
-        final tpMov = TextPainter(
+        final tp = TextPainter(
           text: TextSpan(
             text: '\$${m.valor!.toStringAsFixed(2)}',
             style: TextStyle(color: paintMov.color, fontSize: 12),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        final yLabel = isIngreso ? yEnd + 4 : yEnd - tpMov.height - 4;
-        tpMov.paint(canvas, Offset(x - tpMov.width / 2, yLabel));
+        final yLabel = isIngreso ? yEnd + 4 : yEnd - tp.height - 4;
+        tp.paint(canvas, Offset(x - tp.width / 2, yLabel));
       }
     }
 
@@ -94,10 +94,9 @@ class _FlowPainter extends CustomPainter {
     for (int i = 0; i < d.tasasDeInteres.length; i++) {
       final t = d.tasasDeInteres[i];
       final color = rateColors[i];
-      final paintRate =
-          Paint()
-            ..color = color
-            ..strokeWidth = 3;
+      final paintRate = Paint()
+        ..color = color
+        ..strokeWidth = 3;
       final startX = t.periodoInicio * spacing;
       final endX = t.periodoFin * spacing;
       final yRate = midY - 30 - i * 20;
@@ -136,14 +135,15 @@ class _FlowPainter extends CustomPainter {
 
     // 5) Valores Presente / Futuro
     for (final v in d.valores) {
-      final x = v.periodo * spacing;
+      if (v.periodo == null) continue;
+      final period = v.periodo!;
+      final x = period * spacing;
       final isIngreso = v.flujo == 'Ingreso';
       final arrowLen = 60.0;
       final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
-      final paintConn =
-          Paint()
-            ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
-            ..strokeWidth = 1.5;
+      final paintConn = Paint()
+        ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
+        ..strokeWidth = 1.5;
       canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintConn);
       final path = Path();
       if (isIngreso) {
@@ -195,7 +195,7 @@ class _FlowPainter extends CustomPainter {
       canvas.drawLine(Offset(x, midY - 5), Offset(x, midY + 5), paintLine);
       tickPainter.text = TextSpan(
         text: '$i',
-        style: TextStyle(color: Colors.white, fontSize: 12),
+        style: const TextStyle(color: Colors.white, fontSize: 12),
       );
       tickPainter.layout();
       tickPainter.paint(canvas, Offset(x - tickPainter.width / 2, midY + 8));

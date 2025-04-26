@@ -11,6 +11,9 @@ import 'package:inge_app/application/blocs/valor/valor_bloc.dart';
 import 'package:inge_app/application/blocs/valor/valor_state.dart';
 import 'package:inge_app/application/blocs/movimiento/movimiento_bloc.dart';
 import 'package:inge_app/application/blocs/movimiento/movimiento_state.dart';
+import 'package:inge_app/presentation/widgets/description_section.dart';
+import 'package:inge_app/presentation/widgets/equation_section.dart';
+import 'package:inge_app/presentation/widgets/focal_period_section.dart';
 import 'package:inge_app/presentation/widgets/period_input_widget.dart';
 import 'package:inge_app/presentation/widgets/unit_dropdown_widget.dart';
 import 'package:inge_app/presentation/widgets/rates_section.dart';
@@ -30,8 +33,8 @@ class FlowScreen extends StatelessWidget {
           listener: (ctx, tasaState) {
             if (tasaState is TasaInteresLoaded) {
               ctx.read<FlowDiagramBloc>().add(
-                UpdateTasasEvent(tasaState.tasas),
-              );
+                    UpdateTasasEvent(tasaState.tasas),
+                  );
             }
           },
         ),
@@ -40,8 +43,8 @@ class FlowScreen extends StatelessWidget {
           listener: (ctx, valorState) {
             if (valorState is ValorLoaded) {
               ctx.read<FlowDiagramBloc>().add(
-                UpdateValoresEvent(valorState.valores),
-              );
+                    UpdateValoresEvent(valorState.valores),
+                  );
             }
           },
         ),
@@ -50,8 +53,8 @@ class FlowScreen extends StatelessWidget {
           listener: (ctx, movState) {
             if (movState is MovimientoLoaded) {
               ctx.read<FlowDiagramBloc>().add(
-                UpdateMovimientosEvent(movState.movimientos),
-              );
+                    UpdateMovimientosEvent(movState.movimientos),
+                  );
             }
           },
         ),
@@ -63,7 +66,13 @@ class FlowScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1) Periodos + unidad
+              // 0) Descripción del diagrama
+              const DescriptionSection(),
+
+              // 1) Periodo focal
+              const FocalPeriodSection(),
+
+              // 2) Periodos + unidad
               PeriodInputWidget(
                 onSubmit: (periods) {
                   final unitState = context.read<UnidadDeTiempoBloc>().state;
@@ -86,12 +95,12 @@ class FlowScreen extends StatelessWidget {
               ),
               SizedBox(height: 16),
 
-              // 2) Unidad de tiempo
+              // 3) Unidad de tiempo
               UnitDropdownWidget(),
 
               SizedBox(height: 24),
 
-              // 3) Tasas, valores y movimientos
+              // 4) Tasas, valores y movimientos
               RatesSection(),
               Divider(),
               ValuesSection(),
@@ -100,7 +109,7 @@ class FlowScreen extends StatelessWidget {
 
               SizedBox(height: 24),
 
-              // 4) Vista del diagrama
+              // 5) Vista del diagrama
               BlocBuilder<FlowDiagramBloc, FlowDiagramState>(
                 builder: (_, state) {
                   if (state is FlowDiagramLoaded) {
@@ -115,6 +124,9 @@ class FlowScreen extends StatelessWidget {
                   }
                 },
               ),
+
+              // 6) Botón de análisis
+              const AnalysisSection(),
             ],
           ),
         ),
