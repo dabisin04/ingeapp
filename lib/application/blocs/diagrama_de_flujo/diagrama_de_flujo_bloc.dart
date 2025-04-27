@@ -1,4 +1,3 @@
-// lib/application/blocs/diagrama_de_flujo/diagrama_de_flujo_bloc.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
 import 'package:inge_app/domain/repositories/diagrama_de_flujo_repository.dart';
@@ -6,7 +5,7 @@ import 'package:inge_app/domain/repositories/diagrama_de_flujo_repository.dart';
 import 'diagrama_de_flujo_event.dart';
 import 'diagrama_de_flujo_state.dart';
 
-import 'package:inge_app/infrastructure/utils/financial_analyzer.dart'; // ← NUEVO
+import 'package:inge_app/infrastructure/utils/financial_analyzer.dart';
 
 class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
   final FlowDiagramRepository repository;
@@ -24,10 +23,9 @@ class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
     on<UpdateFocalPeriodEvent>(_onUpdateFocalPeriod);
   }
 
-  // ───────────────────────── helpers ──────────────────────────
+  //helpers
   FlowDiagramLoaded _loadedState(DiagramaDeFlujo diagram) =>
       FlowDiagramLoaded(diagram, FinancialAnalyzer.branch(diagram));
-  // ────────────────────────── handlers ─────────────────────────
 
   Future<void> _onInitializeDiagram(
       InitializeDiagramEvent event, Emitter<FlowDiagramState> emit) async {

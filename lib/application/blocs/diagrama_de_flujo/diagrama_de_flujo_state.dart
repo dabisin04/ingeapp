@@ -1,5 +1,3 @@
-// flow_diagram_state.dart
-
 import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
 import 'package:inge_app/domain/entities/equation_analysis.dart';
 
@@ -11,7 +9,7 @@ class FlowDiagramLoading extends FlowDiagramState {}
 
 class FlowDiagramLoaded extends FlowDiagramState {
   final DiagramaDeFlujo diagrama;
-  final String branch; // ← nueva propiedad
+  final String branch;
   FlowDiagramLoaded(this.diagrama, this.branch);
 }
 

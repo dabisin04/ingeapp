@@ -44,7 +44,7 @@ class MovimientoBloc extends Bloc<MovimientoEvent, MovimientoState> {
   ) async {
     try {
       await repository.updateMovement(event.movimiento);
-      add(CargarMovimientos()); // Reload list of movements after editing
+      add(CargarMovimientos());
     } catch (e) {
       emit(MovimientoError(mensaje: e.toString()));
     }
@@ -56,7 +56,7 @@ class MovimientoBloc extends Bloc<MovimientoEvent, MovimientoState> {
   ) async {
     try {
       await repository.deleteMovement(event.movimiento);
-      add(CargarMovimientos()); // Reload list of movements after deletion
+      add(CargarMovimientos());
     } catch (e) {
       emit(MovimientoError(mensaje: e.toString()));
     }

@@ -21,7 +21,7 @@ class FinancialAnalysisIRR {
         final n = v.periodo! - focal;
         terms.add('${v.valor!.toStringAsFixed(2)}*(1+i)^${n.abs()}');
       }
-      final eq = terms.join(' + ') + ' = 0';
+      final eq = '${terms.join(' + ')} = 0';
       steps.add('Ecuación IRR t=$focal: $eq');
 
       final rate = IRRUtils.solveRateSimple(
@@ -39,11 +39,13 @@ class FinancialAnalysisIRR {
     steps.add('→ Calcular IRR simple trasladando a t=0');
     final movs = d.movimientos.where((m) => m.periodo != null).toList();
     final vals = d.valores.where((v) => v.periodo != null).toList();
-    for (var m in movs)
+    for (var m in movs) {
       terms.add('${m.valor!.toStringAsFixed(2)}*(1+i)^${m.periodo!}');
-    for (var v in vals)
+    }
+    for (var v in vals) {
       terms.add('${v.valor!.toStringAsFixed(2)}*(1+i)^${v.periodo!}');
-    final eq = terms.join(' + ') + ' = 0';
+    }
+    final eq = '${terms.join(' + ')} = 0';
     steps.add('Ecuación IRR t=0: $eq');
 
     final rate = IRRUtils.solveRateSimple(

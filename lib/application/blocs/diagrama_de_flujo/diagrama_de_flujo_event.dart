@@ -1,5 +1,3 @@
-// flow_diagram_event.dart
-
 import 'package:inge_app/domain/entities/movimiento.dart';
 import 'package:inge_app/domain/entities/tasa_de_interes.dart';
 import 'package:inge_app/domain/entities/unidad_de_tiempo.dart';

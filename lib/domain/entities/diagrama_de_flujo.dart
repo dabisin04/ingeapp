@@ -1,4 +1,3 @@
-// lib/domain/entities/diagrama_de_flujo.dart
 import 'dart:convert';
 import 'package:inge_app/domain/entities/unidad_de_tiempo.dart';
 import 'package:inge_app/domain/entities/tasa_de_interes.dart';
@@ -11,7 +10,7 @@ class DiagramaDeFlujo {
   final String? descripcion;
   final UnidadDeTiempo unidadDeTiempo;
   final int cantidadDePeriodos;
-  final int? periodoFocal; // Ahora nullable
+  final int? periodoFocal;
   final List<TasaDeInteres> tasasDeInteres;
   final List<Movimiento> movimientos;
   final List<Valor> valores;
@@ -22,7 +21,7 @@ class DiagramaDeFlujo {
     this.descripcion,
     required this.unidadDeTiempo,
     required this.cantidadDePeriodos,
-    this.periodoFocal, // puede quedar null
+    this.periodoFocal,
     required this.tasasDeInteres,
     required this.movimientos,
     required this.valores,
@@ -32,7 +31,7 @@ class DiagramaDeFlujo {
     String? nombre,
     String? descripcion,
     int? cantidadDePeriodos,
-    int? periodoFocal, // nullable en copyWith
+    int? periodoFocal,
     List<TasaDeInteres>? tasasDeInteres,
     List<Movimiento>? movimientos,
     List<Valor>? valores,
@@ -55,16 +54,14 @@ class DiagramaDeFlujo {
         'descripcion': descripcion,
         'unidadDeTiempo': unidadDeTiempo.toMap(),
         'cantidadDePeriodos': cantidadDePeriodos,
-        'periodoFocal': periodoFocal, // puede ser null
+        'periodoFocal': periodoFocal,
         'tasasDeInteres': tasasDeInteres.map((t) => t.toMap()).toList(),
         'movimientos': movimientos.map((m) => m.toMap()).toList(),
         'valores': valores.map((v) => v.toMap()).toList(),
       };
 
-  /// Retorna el JSON string
   String encode() => jsonEncode(toMap());
 
-  /// Reconstruye la instancia desde JSON string
   static DiagramaDeFlujo decode(String source) {
     final map = jsonDecode(source) as Map<String, dynamic>;
     return DiagramaDeFlujo(
@@ -75,9 +72,8 @@ class DiagramaDeFlujo {
         map['unidadDeTiempo'] as Map<String, dynamic>,
       ),
       cantidadDePeriodos: map['cantidadDePeriodos'] as int,
-      periodoFocal: map['periodoFocal'] != null
-          ? map['periodoFocal'] as int
-          : null, // manejamos el null
+      periodoFocal:
+          map['periodoFocal'] != null ? map['periodoFocal'] as int : null,
       tasasDeInteres: (map['tasasDeInteres'] as List)
           .map((e) => TasaDeInteres.fromMap(e as Map<String, dynamic>))
           .toList(),

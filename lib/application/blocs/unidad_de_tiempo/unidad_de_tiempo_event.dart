@@ -11,6 +11,5 @@ class CargarUnidadesDeTiempo extends UnidadDeTiempoEvent {}
 class SeleccionarUnidadDeTiempo extends UnidadDeTiempoEvent {
   final UnidadDeTiempo unidad;
 
-  // Cambio: ahora tiene un named parameter `unidad`
   SeleccionarUnidadDeTiempo({required this.unidad});
 }

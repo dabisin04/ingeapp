@@ -1,4 +1,3 @@
-// lib/domain/entities/unidad_de_tiempo.dart
 import 'dart:convert';
 
 class UnidadDeTiempo {
@@ -11,10 +10,10 @@ class UnidadDeTiempo {
   Map<String, dynamic> toMap() => {'id': id, 'nombre': nombre, 'valor': valor};
 
   factory UnidadDeTiempo.fromMap(Map<String, dynamic> map) => UnidadDeTiempo(
-    id: map['id'] as int,
-    nombre: map['nombre'] as String,
-    valor: map['valor'] as int,
-  );
+        id: map['id'] as int,
+        nombre: map['nombre'] as String,
+        valor: map['valor'] as int,
+      );
 
   String encode() => jsonEncode(toMap());
 

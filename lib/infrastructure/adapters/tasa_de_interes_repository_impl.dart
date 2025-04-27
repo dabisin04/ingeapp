@@ -35,7 +35,6 @@ class TasaInteresAdapter implements TasaInteresRepository {
 
   @override
   Future<TasaDeInteres?> obtenerTasaPorPeriodo(int periodo) async {
-    // Devuelve la primera tasa que incluya el periodo especificado.
     try {
       return _tasas.firstWhere(
         (t) => periodo >= t.periodoInicio && periodo <= t.periodoFin,

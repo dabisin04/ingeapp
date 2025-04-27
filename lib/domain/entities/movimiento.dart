@@ -4,13 +4,13 @@ class Movimiento {
   final int id;
   final double? valor;
   final String tipo;
-  final int? periodo; // ahora nullable
+  final int? periodo;
 
   Movimiento({
     required this.id,
     this.valor,
     required this.tipo,
-    this.periodo, // opcional
+    this.periodo,
   });
 
   Map<String, dynamic> toMap() => {

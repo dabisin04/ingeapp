@@ -1,32 +1,29 @@
-// lib/domain/entities/valor.dart
 import 'dart:convert';
 
 class Valor {
   final double? valor;
   final String tipo;
-  final int? periodo; // ahora nullable
+  final int? periodo;
   final String flujo;
 
   Valor({
     this.valor,
     required this.tipo,
-    this.periodo, // opcional
+    this.periodo,
     required this.flujo,
   });
 
   Map<String, dynamic> toMap() => {
         'valor': valor,
         'tipo': tipo,
-        'periodo': periodo, // puede ser null
+        'periodo': periodo,
         'flujo': flujo,
       };
 
   factory Valor.fromMap(Map<String, dynamic> map) => Valor(
         valor: (map['valor'] as num?)?.toDouble(),
         tipo: map['tipo'] as String,
-        periodo: map['periodo'] != null
-            ? map['periodo'] as int
-            : null, // manejamos null
+        periodo: map['periodo'] != null ? map['periodo'] as int : null,
         flujo: map['flujo'] as String,
       );
 
