@@ -11,9 +11,11 @@ class MovementCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Calculamos el texto del valor de forma segura
-    final valorTexto =
-        mov.valor != null ? '\$${mov.valor!.toStringAsFixed(2)}' : '—';
+    final valorTexto = mov.valor == null
+        ? '—'
+        : (mov.valor is double
+            ? '\$${(mov.valor as double).toStringAsFixed(2)}'
+            : mov.valor.toString()); // si es String, mostrar tal cual
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -22,21 +24,20 @@ class MovementCard extends StatelessWidget {
           mov.tipo == 'Ingreso' ? Icons.arrow_downward : Icons.arrow_upward,
           color: mov.tipo == 'Ingreso' ? Colors.red : Colors.green,
         ),
-        title: Text('${mov.tipo} — Periodo ${mov.periodo}'),
+        title: Text('${mov.tipo} — Periodo ${mov.periodo ?? "—"}'),
         subtitle: Text(valorTexto),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(Icons.edit, color: Colors.blue),
-              onPressed:
-                  () => showDialog(
-                    context: context,
-                    builder: (_) => MovementCardDialog(mov: mov),
-                  ),
+              icon: const Icon(Icons.edit, color: Colors.blue),
+              onPressed: () => showDialog(
+                context: context,
+                builder: (_) => MovementCardDialog(mov: mov),
+              ),
             ),
             IconButton(
-              icon: Icon(Icons.delete, color: Colors.red),
+              icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () {
                 context.read<MovimientoBloc>().add(EliminarMovimiento(mov));
               },

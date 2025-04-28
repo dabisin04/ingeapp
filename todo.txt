@@ -1,4 +1,4 @@
-(PRIMORDIAL)AÑADIR ANALIZADOR Y SOLUCIONADOR PARA LOS SIGUIENTES CASOS
+(PRIMORDIAL)AÑADIR ANALIZADOR Y SOLUCIONADOR PARA LOS SIGUIENTES CASOS <- COMPLETADO
 //Sustituir una obligación de tres pagarés así: uno de U$45.000 en tres meses, otro de 
 U$30.000 en ocho meses y otro de U$35.000 en quince meses y con una tasa de interés del 
 2,5% mensual, por su equivalente en tres pagos a dos, seis y once meses, tales que cada uno

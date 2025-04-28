@@ -21,30 +21,41 @@ class _MovementCardDialogState extends State<MovementCardDialog> {
   void initState() {
     super.initState();
     if (widget.mov != null) {
-      // Si ya hay un movimiento, cargamos su periodo (si existe) o dejamos vacío
       _periodoCtrl.text = widget.mov!.periodo?.toString() ?? '';
-      _valorCtrl.text = widget.mov!.valor?.toString() ?? '';
+
+      // 🔥 Corregimos aquí:
+      final val = widget.mov!.valor;
+      if (val == null) {
+        _valorCtrl.text = '';
+      } else if (val is double) {
+        _valorCtrl.text = val.toStringAsFixed(2); // formato bonito
+      } else if (val is String) {
+        _valorCtrl.text = val; // literal como está
+      }
+
       _tipo = widget.mov!.tipo;
     }
   }
 
   void _onSave() {
-    // Nota: ya no retornamos si periodo está vacío
     final periodoText = _periodoCtrl.text.trim();
     final valorText = _valorCtrl.text.trim();
 
-    // parsear periodo sólo si no está vacío
     final int? periodo = periodoText.isEmpty ? null : int.tryParse(periodoText);
 
-    // parsear valor igual que antes (0.0 si vacío)
-    final double valorNum =
-        valorText.isEmpty ? 0.0 : (double.tryParse(valorText) ?? 0.0);
+    dynamic valorFinal;
+    if (valorText.isEmpty) {
+      valorFinal = 0.0;
+    } else if (double.tryParse(valorText) != null) {
+      valorFinal = double.parse(valorText);
+    } else {
+      valorFinal = valorText; // Guarda como string directamente
+    }
 
-    // crear el objeto con periodo nullable
     final nuevo = Movimiento(
       id: widget.mov?.id ?? DateTime.now().millisecondsSinceEpoch,
       periodo: periodo,
-      valor: valorNum,
+      valor: valorFinal,
       tipo: _tipo,
     );
 

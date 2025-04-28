@@ -1,4 +1,3 @@
-// lib/presentation/widgets/analysis_section.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
@@ -68,8 +67,10 @@ class AnalysisSection extends StatelessWidget {
                       '^n'); // si la ecuación tiene ^n → rama de períodos
                   return Text(
                     isN
-                        ? 'Solución: n = ${state.analysis.solution.toStringAsFixed(2)}'
-                        : 'Solución: i = ${(state.analysis.solution * 100).toStringAsFixed(4)}%',
+                        ? 'Solución: n = ${state.analysis.solution.toStringAsFixed(2)} periodos'
+                        : (state.analysis.equation.contains('(1+i)')
+                            ? 'Solución: i = ${(state.analysis.solution * 100).toStringAsFixed(4)}%'
+                            : 'Solución: X = \$${state.analysis.solution.toStringAsFixed(2)}'),
                     style: const TextStyle(fontWeight: FontWeight.w600),
                   );
                 },

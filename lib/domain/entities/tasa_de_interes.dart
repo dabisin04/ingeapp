@@ -11,9 +11,10 @@ class TasaDeInteres {
   final UnidadDeTiempo periodicidad;
   final UnidadDeTiempo capitalizacion;
   final String tipo;
-  final int periodoInicio;
-  final int periodoFin;
-  final String aplicaA;
+  final int periodoInicio; // Periodo de inicio de la tasa
+  final int periodoFin; // Periodo de fin de la tasa
+  final String
+      aplicaA; // Aplica a: 'Todos los movimientos', 'Ingresos', 'Egresos'
 
   TasaDeInteres({
     required this.id,

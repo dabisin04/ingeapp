@@ -2,7 +2,7 @@ import 'dart:convert';
 
 class Movimiento {
   final int id;
-  final double? valor;
+  final dynamic valor; // ← puede ser double o String
   final String tipo;
   final int? periodo;
 
@@ -15,14 +15,14 @@ class Movimiento {
 
   Map<String, dynamic> toMap() => {
         'id': id,
-        'valor': valor,
+        'valor': valor, // ← guarda tal cual
         'tipo': tipo,
         'periodo': periodo,
       };
 
   factory Movimiento.fromMap(Map<String, dynamic> map) => Movimiento(
         id: map['id'] as int,
-        valor: (map['valor'] as num?)?.toDouble(),
+        valor: map['valor'], // ← sin convertir
         tipo: map['tipo'] as String,
         periodo: map['periodo'] != null ? map['periodo'] as int : null,
       );

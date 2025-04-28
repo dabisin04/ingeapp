@@ -115,15 +115,20 @@ class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
   }
 
   Future<void> _onAnalyzeDiagram(
-      AnalyzeDiagramEvent event, Emitter<FlowDiagramState> emit) async {
+    AnalyzeDiagramEvent event,
+    Emitter<FlowDiagramState> emit,
+  ) async {
     final diagram = state is FlowDiagramLoaded
         ? (state as FlowDiagramLoaded).diagrama
         : null;
+
     if (diagram == null) {
       emit(AnalysisFailure('No hay diagrama para analizar'));
       return;
     }
+
     emit(AnalysisInProgress());
+
     try {
       final result = await repository.analyzeDiagram(diagram);
       emit(AnalysisSuccess(result));

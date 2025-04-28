@@ -62,7 +62,7 @@ class RateConversionUtils {
 
     if (yaEsPeriodica && coincideUnidad && esVencida) {
       steps.add('La tasa ya es periódica-vencida en la unidad objetivo '
-          '(${unidadObjetivo.nombre}).  No se realiza conversión.');
+          '(${unidadObjetivo.nombre}). No se realiza conversión.');
       return (rate: tasa.valor, steps: steps);
     }
 
@@ -109,5 +109,25 @@ class RateConversionUtils {
         '${iNomTar.toStringAsFixed(6)}/$nTar = ${iPerTar.toStringAsFixed(6)}');
 
     return (rate: iPerTar, steps: steps);
+  }
+
+  /// Normaliza el tipo de flujo ("ingreso", "egreso" o "todos").
+  ///
+  /// - Si contiene "ingreso" devuelve "ingreso".
+  /// - Si contiene "egreso" devuelve "egreso".
+  /// - Si contiene "todos" devuelve "todos".
+  /// - En otro caso, devuelve el string en minúscula.
+  static String normalizeTipo(String tipo) {
+    final lower = tipo.trim().toLowerCase();
+    if (lower.contains('ingreso')) {
+      return 'ingreso';
+    }
+    if (lower.contains('egreso')) {
+      return 'egreso';
+    }
+    if (lower.contains('todos')) {
+      return 'todos';
+    }
+    return lower;
   }
 }

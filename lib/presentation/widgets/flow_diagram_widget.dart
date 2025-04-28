@@ -30,6 +30,13 @@ class FlowDiagramWidget extends StatelessWidget {
   }
 }
 
+// 🔥 Función segura para formatear valores double o string:
+String formatearValor(dynamic valor) {
+  if (valor == null) return '';
+  if (valor is double) return '\$${valor.toStringAsFixed(2)}';
+  return valor.toString();
+}
+
 class _FlowPainter extends CustomPainter {
   final DiagramaDeFlujo d;
   final double spacing;
@@ -42,7 +49,6 @@ class _FlowPainter extends CustomPainter {
       ..color = Colors.white
       ..strokeWidth = 2;
 
-    // Genera colores dinámicos para cada tasa (utilizando HSL)
     final rateColors = List.generate(
       d.tasasDeInteres.length,
       (i) => HSVColor.fromAHSV(
@@ -55,7 +61,7 @@ class _FlowPainter extends CustomPainter {
 
     final focal = d.periodoFocal ?? 0;
 
-    // 3) Movimientos: flechas verticales invertidas (ingresos rojos abajo, egresos verdes arriba)
+    // 3) Movimientos
     for (final m in d.movimientos) {
       final period = m.periodo ?? focal;
       final x = period * spacing;
@@ -66,21 +72,19 @@ class _FlowPainter extends CustomPainter {
         ..color = isIngreso ? Colors.redAccent : Colors.greenAccent
         ..strokeWidth = 2;
 
-      // Línea principal
       canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
 
-      // Cabeza de flecha
       final pathMov = Path()
-        ..moveTo(x + (isIngreso ? -6 : -6), yEnd + (isIngreso ? -6 : 6))
+        ..moveTo(x - 6, yEnd + (isIngreso ? -6 : 6))
         ..lineTo(x, yEnd)
         ..lineTo(x + 6, yEnd + (isIngreso ? -6 : 6));
       canvas.drawPath(pathMov, paintMov);
 
-      // Valor
       if (m.valor != null) {
+        final valorTexto = formatearValor(m.valor);
         final tp = TextPainter(
           text: TextSpan(
-            text: '\$${m.valor!.toStringAsFixed(2)}',
+            text: valorTexto,
             style: TextStyle(color: paintMov.color, fontSize: 12),
           ),
           textDirection: TextDirection.ltr,
@@ -90,7 +94,7 @@ class _FlowPainter extends CustomPainter {
       }
     }
 
-    // 4) Tasas de interés: líneas con conexiones verticales y stacking, colores únicos
+    // 4) Tasas de interés
     for (int i = 0; i < d.tasasDeInteres.length; i++) {
       final t = d.tasasDeInteres[i];
       final color = rateColors[i];
@@ -100,12 +104,11 @@ class _FlowPainter extends CustomPainter {
       final startX = t.periodoInicio * spacing;
       final endX = t.periodoFin * spacing;
       final yRate = midY - 30 - i * 20;
-      // Conectores verticales
+
       canvas.drawLine(Offset(startX, midY), Offset(startX, yRate), paintRate);
       canvas.drawLine(Offset(endX, midY), Offset(endX, yRate), paintRate);
-      // Línea de tasa
       canvas.drawLine(Offset(startX, yRate), Offset(endX, yRate), paintRate);
-      // Flechas
+
       canvas.drawPath(
         Path()
           ..moveTo(endX - 5, yRate - 5)
@@ -120,7 +123,7 @@ class _FlowPainter extends CustomPainter {
           ..lineTo(startX + 5, yRate + 5),
         paintRate,
       );
-      // Etiqueta
+
       final label = '${(t.valor * 100).toStringAsFixed(2)}%';
       final tp = TextPainter(
         text: TextSpan(
@@ -133,7 +136,7 @@ class _FlowPainter extends CustomPainter {
       tp.paint(canvas, Offset(lx, yRate - tp.height - 4));
     }
 
-    // 5) Valores Presente / Futuro
+    // 5) Valores (Presente / Futuro)
     for (final v in d.valores) {
       if (v.periodo == null) continue;
       final period = v.periodo!;
@@ -145,6 +148,7 @@ class _FlowPainter extends CustomPainter {
         ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
         ..strokeWidth = 1.5;
       canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintConn);
+
       final path = Path();
       if (isIngreso) {
         path.moveTo(x - 5, yEnd - 8);
@@ -156,6 +160,7 @@ class _FlowPainter extends CustomPainter {
         path.lineTo(x + 5, yEnd + 8);
       }
       canvas.drawPath(path, paintConn);
+
       final letter = v.tipo == 'Presente' ? 'P' : 'F';
       final lp = TextPainter(
         text: TextSpan(
@@ -171,10 +176,12 @@ class _FlowPainter extends CustomPainter {
       )..layout();
       final ly = isIngreso ? yEnd + 4 : yEnd - lp.height - 4;
       lp.paint(canvas, Offset(x + 8, ly));
+
       if (v.valor != null) {
+        final valorTexto = formatearValor(v.valor);
         final vp = TextPainter(
           text: TextSpan(
-            text: '\$${v.valor!.toStringAsFixed(2)}',
+            text: valorTexto,
             style: TextStyle(color: paintConn.color, fontSize: 10),
           ),
           textDirection: TextDirection.ltr,

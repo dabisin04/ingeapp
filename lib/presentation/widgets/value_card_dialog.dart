@@ -1,4 +1,3 @@
-// lib/presentation/widgets/value_card_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:inge_app/application/blocs/valor/valor_state.dart';
@@ -24,11 +23,19 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
   void initState() {
     super.initState();
     _periodoCtrl = TextEditingController(
-      text: widget.valor?.periodo?.toString() ?? '', // usa ?.toString()
+      text: widget.valor?.periodo?.toString() ?? '',
     );
-    _valorCtrl = TextEditingController(
-      text: widget.valor?.valor?.toString() ?? '',
-    );
+
+    // 🔥 Corregimos aquí:
+    final val = widget.valor?.valor;
+    if (val == null) {
+      _valorCtrl = TextEditingController(text: '');
+    } else if (val is double) {
+      _valorCtrl = TextEditingController(text: val.toStringAsFixed(2));
+    } else if (val is String) {
+      _valorCtrl = TextEditingController(text: val);
+    }
+
     _tipo = widget.valor?.tipo;
     _flujo = widget.valor?.flujo ?? 'Ingreso';
   }
@@ -41,14 +48,25 @@ class _ValueCardDialogState extends State<ValueCardDialog> {
   }
 
   void _onSave() {
-    final int? periodo = int.tryParse(_periodoCtrl.text.trim());
-    final double? valorNum = double.tryParse(_valorCtrl.text.trim());
+    final periodoText = _periodoCtrl.text.trim();
+    final valorText = _valorCtrl.text.trim();
 
-    if (_tipo == null) return; // tipo sigue siendo requerido
+    final int? periodo = periodoText.isEmpty ? null : int.tryParse(periodoText);
+
+    dynamic valorFinal;
+    if (valorText.isEmpty) {
+      valorFinal = 0.0;
+    } else if (double.tryParse(valorText) != null) {
+      valorFinal = double.parse(valorText);
+    } else {
+      valorFinal = valorText; // Guarda como String directamente
+    }
+
+    if (_tipo == null) return;
 
     final nueva = Valor(
-      valor: valorNum,
-      periodo: periodo, // puede quedar null
+      valor: valorFinal,
+      periodo: periodo,
       tipo: _tipo!,
       flujo: _flujo,
     );

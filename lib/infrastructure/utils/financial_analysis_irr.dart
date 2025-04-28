@@ -10,17 +10,23 @@ class FinancialAnalysisIRR {
     // IRR con focal definido
     if (d.periodoFocal != null && d.tasasDeInteres.isNotEmpty) {
       steps.add('→ Calcular IRR trasladando flujos a t=$focal');
-      final movs = d.movimientos.where((m) => m.periodo != null).toList();
-      final vals = d.valores.where((v) => v.periodo != null).toList();
+
+      final movs = d.movimientos
+          .where((m) => m.periodo != null && m.valor is double)
+          .toList();
+      final vals = d.valores
+          .where((v) => v.periodo != null && v.valor is double)
+          .toList();
 
       for (var m in movs) {
         final n = m.periodo! - focal;
-        terms.add('${m.valor!.toStringAsFixed(2)}*(1+i)^${n.abs()}');
+        terms.add('${(m.valor as double).toStringAsFixed(2)}*(1+i)^${n.abs()}');
       }
       for (var v in vals) {
         final n = v.periodo! - focal;
-        terms.add('${v.valor!.toStringAsFixed(2)}*(1+i)^${n.abs()}');
+        terms.add('${(v.valor as double).toStringAsFixed(2)}*(1+i)^${n.abs()}');
       }
+
       final eq = '${terms.join(' + ')} = 0';
       steps.add('Ecuación IRR t=$focal: $eq');
 
@@ -36,15 +42,24 @@ class FinancialAnalysisIRR {
       return EquationAnalysis(equation: eq, steps: steps, solution: rate);
     }
 
+    // IRR simple (sin focal)
     steps.add('→ Calcular IRR simple trasladando a t=0');
-    final movs = d.movimientos.where((m) => m.periodo != null).toList();
-    final vals = d.valores.where((v) => v.periodo != null).toList();
+
+    final movs = d.movimientos
+        .where((m) => m.periodo != null && m.valor is double)
+        .toList();
+    final vals =
+        d.valores.where((v) => v.periodo != null && v.valor is double).toList();
+
     for (var m in movs) {
-      terms.add('${m.valor!.toStringAsFixed(2)}*(1+i)^${m.periodo!}');
+      terms
+          .add('${(m.valor as double).toStringAsFixed(2)}*(1+i)^${m.periodo!}');
     }
     for (var v in vals) {
-      terms.add('${v.valor!.toStringAsFixed(2)}*(1+i)^${v.periodo!}');
+      terms
+          .add('${(v.valor as double).toStringAsFixed(2)}*(1+i)^${v.periodo!}');
     }
+
     final eq = '${terms.join(' + ')} = 0';
     steps.add('Ecuación IRR t=0: $eq');
 
