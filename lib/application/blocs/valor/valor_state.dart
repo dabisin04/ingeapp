@@ -22,7 +22,7 @@ class ValorUpdated extends ValorState {
 }
 
 class ValorDeleted extends ValorState {
-  final int periodo;
+  final int? periodo;
   final String tipo;
   final String flujo; // Nuevo campo
   ValorDeleted(this.periodo, this.tipo, this.flujo);

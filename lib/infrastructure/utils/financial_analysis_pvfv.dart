@@ -16,15 +16,26 @@ class FinancialAnalysisPVFV {
       throw StateError('Se necesita al menos una tasa de interés.');
     }
 
+    // Buscamos exactamente una incógnita: valor nulo o "X"
     final valoresNull = d.valores.where((v) => v.valor == null).toList();
-    if (valoresNull.length != 1) {
+    final valoresX = d.valores
+        .where((v) =>
+            v.valor is String &&
+            (v.valor as String).trim().toUpperCase() == 'X')
+        .toList();
+
+    if (valoresNull.length + valoresX.length != 1) {
       throw StateError(
-        'Debe existir exactamente un Valor con valor=null para despejarlo.',
+        'Debe existir exactamente un Valor con valor=null o "X" como incógnita.',
       );
     }
 
-    final Valor valorNulo = valoresNull.single;
-    final int focal = d.periodoFocal ?? valorNulo.periodo ?? 0;
+    // Identificamos el elemento que contiene la incógnita
+    final Valor valorIncognita =
+        valoresNull.isNotEmpty ? valoresNull.single : valoresX.single;
+
+    // El periodo focal será el indicado por el diagrama, o si no viene, el del PV/FV
+    final int focal = d.periodoFocal ?? valorIncognita.periodo!;
 
     /* ── 2) Normalizar tasas a periódica-vencida ───────────────── */
     final tasasOk = d.tasasDeInteres.map((t) {
@@ -54,21 +65,22 @@ class FinancialAnalysisPVFV {
     steps.add('Tasas normalizadas (% ${d.unidadDeTiempo.nombre}):');
     for (final t in tasasOk) {
       steps.add(
-        ' • ${t.periodoInicio}-${t.periodoFin}: ${(t.valor * 100).toStringAsFixed(6)}%, aplica a ${t.aplicaA}',
+        ' • ${t.periodoInicio}-${t.periodoFin}: '
+        '${(t.valor * 100).toStringAsFixed(6)}%, aplica a ${t.aplicaA}',
       );
     }
 
     /* ── 3) Trasladar flujos a la fecha focal ──────────────────── */
     double netInFocal = 0.0;
 
+    // Busca la tasa efectiva en un periodo dado
     double _getRate(int periodo, String tipoFlujo) {
       final tipoNorm = RateConversionUtils.normalizeTipo(tipoFlujo);
 
       final tasasAplicables = tasasOk.where((t) {
         final inRango = periodo >= t.periodoInicio && periodo <= t.periodoFin;
         final aplica = RateConversionUtils.normalizeTipo(t.aplicaA);
-        final tipoCoincide = aplica == 'todos' || aplica == tipoNorm;
-        return inRango && tipoCoincide;
+        return inRango && (aplica == 'todos' || aplica == tipoNorm);
       }).toList();
 
       if (tasasAplicables.isEmpty) {
@@ -79,65 +91,81 @@ class FinancialAnalysisPVFV {
       final sumaTasas =
           tasasAplicables.map((t) => t.valor).reduce((a, b) => a + b);
 
-      print('🔎 Tasas en t=$periodo ($tipoFlujo): '
-          '${tasasAplicables.map((t) => (t.valor * 100).toStringAsFixed(4)).join('% + ')} '
-          '= ${(sumaTasas * 100).toStringAsFixed(4)}%');
+      steps.add(
+        '🔎 Tasas en t=$periodo ($tipoFlujo): '
+        '${tasasAplicables.map((t) => (t.valor * 100).toStringAsFixed(4)).join('% + ')} '
+        '= ${(sumaTasas * 100).toStringAsFixed(4)}%',
+      );
 
       return sumaTasas;
     }
 
+    // Calcula el factor entre el flujo y el focal
     double _factor(int periodo, double tasa) {
       final n = (periodo - focal).abs();
-
       if (periodo > focal) {
-        // Flujo ocurre después del focal → descuento
+        // flujo después de focal → descuento
         return 1 / pow(1 + tasa, n);
       } else if (periodo < focal) {
-        // Flujo ocurre antes del focal → capitalizo
+        // flujo antes del focal → capitalizar
         return pow(1 + tasa, n).toDouble();
       } else {
         return 1.0;
       }
     }
 
+    // Procesamos movimientos (todos los movimientos DEBEN ser double)
     for (final m in d.movimientos) {
-      if (m.periodo == null || m.valor == null || m.valor is! double) continue;
+      if (m.periodo == null || m.valor == null) continue;
+      if (m.valor is! double) {
+        throw StateError('Movimientos deben tener valores numéricos dobles.');
+      }
       final tasaAplicable = _getRate(m.periodo!, m.tipo);
       final ingreso = RateConversionUtils.normalizeTipo(m.tipo) == 'ingreso';
       final aporte = (ingreso ? 1 : -1) *
           (m.valor as double) *
           _factor(m.periodo!, tasaAplicable);
+
       steps.add(
-        '${m.tipo} \$${m.valor} en t=${m.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
+        '${m.tipo} \$${(m.valor as double).toStringAsFixed(2)} '
+        'en t=${m.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
       );
       netInFocal += aporte;
     }
 
+    // Procesamos valores conocidos (ignoramos el valorIncognita)
     for (final v in d.valores) {
-      if (v == valorNulo ||
-          v.valor == null ||
-          v.periodo == null ||
-          v.valor is! double) continue;
+      if (v == valorIncognita) continue;
+      if (v.periodo == null || v.valor == null) continue;
+      if (v.valor is! double) {
+        throw StateError(
+            'Valores deben ser numéricos dobles, excepto la incógnita.');
+      }
       final tasaAplicable = _getRate(v.periodo!, v.flujo);
       final ingreso = RateConversionUtils.normalizeTipo(v.flujo) == 'ingreso';
       final aporte = (ingreso ? 1 : -1) *
           (v.valor as double) *
           _factor(v.periodo!, tasaAplicable);
+
       steps.add(
-        '${v.flujo} \$${v.valor} en t=${v.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
+        '${v.flujo} \$${(v.valor as double).toStringAsFixed(2)} '
+        'en t=${v.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
       );
       netInFocal += aporte;
     }
 
     /* ── 4) Despeje del Valor faltante ────────────────────────── */
     final ingresoObjetivo =
-        RateConversionUtils.normalizeTipo(valorNulo.flujo) == 'ingreso';
+        RateConversionUtils.normalizeTipo(valorIncognita.flujo) == 'ingreso';
     final signoObjetivo = ingresoObjetivo ? 1 : -1;
 
+    // netInFocal + signoObjetivo * X = 0  =>  X = -netInFocal / signoObjetivo
     final double X = -netInFocal / signoObjetivo;
 
-    steps.add('Ecuación en t=$focal: ${netInFocal.toStringAsFixed(6)} '
-        '${signoObjetivo == 1 ? '+' : '-'} X = 0');
+    steps.add(
+      'Ecuación en t=$focal: ${netInFocal.toStringAsFixed(6)} '
+      '${signoObjetivo == 1 ? '+' : '-'} X = 0',
+    );
     steps.add('⇒ X = ${X.toStringAsFixed(6)}');
 
     return EquationAnalysis(

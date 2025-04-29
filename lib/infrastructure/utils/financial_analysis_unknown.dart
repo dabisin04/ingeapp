@@ -11,14 +11,16 @@ class FinancialAnalysisUnknown {
     if (d.tasasDeInteres.isEmpty) {
       throw StateError('Se necesita al menos una tasa de interés.');
     }
+    if (d.periodoFocal == null) {
+      throw StateError('No se definió el periodo focal.');
+    }
+    final int focal = d.periodoFocal!;
 
-    final focal = d.periodoFocal ?? 0;
-
+    // ---------- Normalización de tasas ----------
     final tasasOk = d.tasasDeInteres.map((t) {
       final yaOk = t.periodicidad.id == d.unidadDeTiempo.id &&
           t.capitalizacion.id == d.unidadDeTiempo.id &&
           t.tipo.toLowerCase() == 'vencida';
-
       if (yaOk) return t;
 
       final nuevaRate = RateConversionUtils.periodicRateForDiagram(
@@ -38,24 +40,25 @@ class FinancialAnalysisUnknown {
       );
     }).toList();
 
-    print('🌟 Tasas normalizadas:');
+    print('\n🌟 Tasas normalizadas:');
     for (final t in tasasOk) {
       print(
-          ' • ${t.periodoInicio}-${t.periodoFin}: ${(t.valor * 100).toStringAsFixed(6)}% para ${t.aplicaA}');
+          '• ${t.periodoInicio}-${t.periodoFin}: ${(t.valor * 100).toStringAsFixed(6)}% aplica a ${t.aplicaA}');
     }
 
     double coefX = 0.0;
     double constante = 0.0;
     final ecuacion = <String>[];
 
+    // ---------- Función auxiliar para buscar tasa ----------
     double _getRate(int periodo, String tipoFlujo) {
       final tipoNormalized = RateConversionUtils.normalizeTipo(tipoFlujo);
 
       final tasasAplicables = tasasOk.where((t) {
         final inRango = periodo >= t.periodoInicio && periodo <= t.periodoFin;
-        final aplica = RateConversionUtils.normalizeTipo(t.aplicaA);
-        final tipoCoincide = aplica == 'todos' || aplica == tipoNormalized;
-        return inRango && tipoCoincide;
+        final aplicaNormalized = RateConversionUtils.normalizeTipo(t.aplicaA);
+        return inRango &&
+            (aplicaNormalized == tipoNormalized || aplicaNormalized == 'todos');
       }).toList();
 
       if (tasasAplicables.isEmpty) {
@@ -66,65 +69,67 @@ class FinancialAnalysisUnknown {
       final sumaTasas =
           tasasAplicables.map((t) => t.valor).reduce((a, b) => a + b);
 
-      print('🔍 Tasas activas para $tipoFlujo en t=$periodo: '
-          '${tasasAplicables.map((t) => (t.valor * 100).toStringAsFixed(4)).join('% + ')}%'
-          ' = ${(sumaTasas * 100).toStringAsFixed(4)}%');
+      print('📈 Tasas en t=$periodo para $tipoFlujo: '
+          '${tasasAplicables.map((t) => (t.valor * 100).toStringAsFixed(4)).join('% + ')} '
+          '= ${(sumaTasas * 100).toStringAsFixed(4)}%');
 
       return sumaTasas;
     }
 
-    double _factor(int p, String tipoFlujo) {
-      if (p == focal) {
-        print('💬 Factor para t=$p es 1.0 (focal)');
+    // ---------- Función de cálculo de factor ----------
+    double _factor(int periodo, String tipoFlujo) {
+      if (periodo == focal) {
+        print('💬 Factor de t=$periodo a t=$focal es 1.0 (mismo periodo)');
         return 1.0;
       }
 
       double factor = 1.0;
-      final sentido = p > focal ? 1 : -1;
-      int actual = focal;
+      final sentido =
+          periodo < focal ? 1 : -1; // ⚡️ CAMBIO AQUI: comparación cambia
 
-      print('🔎 Calculando factor de descuento de t=$focal a t=$p:');
+      int actual = periodo;
 
-      while (actual != p) {
+      print('\n🔎 Cálculo de factor de t=$periodo a t=$focal:');
+
+      while (actual != focal) {
         final tasaActual = _getRate(actual, tipoFlujo);
         int siguienteCambio = actual;
 
-        while (siguienteCambio != p) {
-          final nextStep = siguienteCambio + sentido;
+        while (siguienteCambio != focal) {
+          final next = siguienteCambio + sentido;
           try {
-            final tasaNext = _getRate(nextStep, tipoFlujo);
-            if (tasaNext != tasaActual) {
-              break;
-            }
+            final tasaNext = _getRate(next, tipoFlujo);
+            if (tasaNext != tasaActual) break;
           } catch (_) {
             break;
           }
-          siguienteCambio = nextStep;
+          siguienteCambio = next;
         }
-
-        if (siguienteCambio == actual) {
-          siguienteCambio += sentido; // 🔥 Corrección: avanzar 1 si no cambia
-        }
+        if (siguienteCambio == actual) siguienteCambio += sentido;
 
         final nPeriodos = (siguienteCambio - actual).abs();
         final tramoFactor = sentido > 0
-            ? 1 / pow(1 + tasaActual, nPeriodos)
-            : pow(1 + tasaActual, nPeriodos).toDouble();
+            ? pow(1 + tasaActual, nPeriodos)
+                .toDouble() // 🔥 CRECIMIENTO HACIA FUTURO
+            : 1 / pow(1 + tasaActual, nPeriodos); // 🔥 DESCUENTO HACIA ATRAS
 
         print(
-            '   • De t=$actual a t=$siguienteCambio con tasa ${(tasaActual * 100).toStringAsFixed(4)}%: factor parcial = ${tramoFactor.toStringAsFixed(12)}');
+            '➔ De t=$actual a t=$siguienteCambio usando tasa ${(tasaActual * 100).toStringAsFixed(4)}% '
+            'por $nPeriodos periodos: '
+            'factor parcial = ${tramoFactor.toStringAsFixed(12)}');
 
         factor *= tramoFactor;
         actual = siguienteCambio;
       }
 
-      print('✅ Factor total de t=$focal a t=$p: ${factor.toStringAsFixed(12)}');
+      print(
+          '✅ Factor final de t=$periodo a t=$focal: ${factor.toStringAsFixed(12)}');
       return factor;
     }
 
+    // ---------- Procesamiento de valores ----------
     void _procesarValorSinPeriodo(dynamic valor, String tipoFlujo) {
       final ingreso = RateConversionUtils.normalizeTipo(tipoFlujo) == 'ingreso';
-
       if (valor == null) return;
 
       if (valor is double) {
@@ -140,38 +145,40 @@ class FinancialAnalysisUnknown {
           ecuacion.add('${ingreso ? '+' : '-'} 1.000000X');
           print('🧮 Valor sin periodo: ${ingreso ? '+' : '-'}1.000000X');
         } else if (RegExp(r'^\d*\.?\d+\*?X$').hasMatch(texto)) {
-          final factorStr = texto.replaceAll('*', '').replaceAll('X', '');
-          final factor = double.parse(factorStr);
+          final factor =
+              double.parse(texto.replaceAll('*', '').replaceAll('X', ''));
           coefX += ingreso ? factor : -factor;
           ecuacion.add('${ingreso ? '+' : '-'} ${factor.toStringAsFixed(6)}X');
           print(
               '🧮 Valor sin periodo: ${ingreso ? '+' : '-'}${factor.toStringAsFixed(6)}X');
         } else if (texto.contains('/')) {
           final partes = texto.split('/');
-          final numerador = partes[0].trim();
-          final denominador = partes[1].trim();
-          final num = numerador == 'X' ? 1.0 : double.parse(numerador);
-          final den = double.parse(denominador);
-          final factor = num / den;
+          final numStr = partes[0].trim();
+          final den = double.parse(partes[1].trim());
 
-          coefX += ingreso ? factor : -factor;
-          ecuacion.add('${ingreso ? '+' : '-'} ${factor.toStringAsFixed(6)}X');
-          print(
-              '🧮 Valor sin periodo: ${ingreso ? '+' : '-'}${factor.toStringAsFixed(6)}X');
-        } else {
-          final num = double.parse(texto);
-          final contrib = ingreso ? num : -num;
-          constante += contrib;
-          ecuacion.add(
-              '${contrib >= 0 ? '+' : '-'} ${contrib.abs().toStringAsFixed(2)}');
-          print('🧮 Valor sin periodo: ${ingreso ? '+' : '-'}${num}');
+          if (numStr.contains('X')) {
+            final coefStr = numStr.replaceAll('X', '').trim();
+            final coef = coefStr.isEmpty ? 1.0 : double.parse(coefStr);
+            final factor = coef / den;
+            coefX += ingreso ? factor : -factor;
+            ecuacion
+                .add('${ingreso ? '+' : '-'} ${factor.toStringAsFixed(6)}X');
+            print(
+                '🧮 Valor sin periodo: ${ingreso ? '+' : '-'}${factor.toStringAsFixed(6)}X');
+          } else {
+            final num = double.parse(numStr);
+            final factor = num / den;
+            constante += ingreso ? factor : -factor;
+            ecuacion.add('${ingreso ? '+' : '-'} ${factor.toStringAsFixed(2)}');
+            print(
+                '🧮 Valor sin periodo: ${ingreso ? '+' : '-'}${factor.toStringAsFixed(2)}');
+          }
         }
       }
     }
 
     void _procesarValorConFactor(dynamic valor, double fac, String tipoFlujo) {
       final ingreso = RateConversionUtils.normalizeTipo(tipoFlujo) == 'ingreso';
-
       if (valor == null) return;
 
       if (valor is double) {
@@ -189,26 +196,36 @@ class FinancialAnalysisUnknown {
           print(
               '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${fac.toStringAsFixed(12)}X');
         } else if (RegExp(r'^\d*\.?\d+\*?X$').hasMatch(texto)) {
-          final factorStr = texto.replaceAll('*', '').replaceAll('X', '');
-          final factor = double.parse(factorStr);
-          coefX += (ingreso ? factor : -factor) * fac;
+          final coef =
+              double.parse(texto.replaceAll('*', '').replaceAll('X', ''));
+          coefX += (ingreso ? coef : -coef) * fac;
           ecuacion.add(
-              '${ingreso ? '+' : '-'} ${(factor * fac).toStringAsFixed(6)}X');
+              '${ingreso ? '+' : '-'} ${(coef * fac).toStringAsFixed(6)}X');
           print(
-              '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${(factor * fac).toStringAsFixed(12)}X');
+              '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${(coef * fac).toStringAsFixed(12)}X');
         } else if (texto.contains('/')) {
           final partes = texto.split('/');
-          final numerador = partes[0].trim();
-          final denominador = partes[1].trim();
-          final num = numerador == 'X' ? 1.0 : double.parse(numerador);
-          final den = double.parse(denominador);
-          final factor = num / den;
+          final numStr = partes[0].trim();
+          final den = double.parse(partes[1].trim());
 
-          coefX += (ingreso ? factor : -factor) * fac;
-          ecuacion.add(
-              '${ingreso ? '+' : '-'} ${(factor * fac).toStringAsFixed(6)}X');
-          print(
-              '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${(factor * fac).toStringAsFixed(12)}X');
+          if (numStr.contains('X')) {
+            final coefStr = numStr.replaceAll('X', '').trim();
+            final coef = coefStr.isEmpty ? 1.0 : double.parse(coefStr);
+            final factorX = coef / den;
+            coefX += (ingreso ? factorX : -factorX) * fac;
+            ecuacion.add(
+                '${ingreso ? '+' : '-'} ${(factorX * fac).toStringAsFixed(6)}X');
+            print(
+                '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${(factorX * fac).toStringAsFixed(12)}X');
+          } else {
+            final num = double.parse(numStr);
+            final factorNum = num / den;
+            constante += (ingreso ? factorNum : -factorNum) * fac;
+            ecuacion.add(
+                '${ingreso ? '+' : '-'} ${(factorNum * fac).toStringAsFixed(2)}');
+            print(
+                '🧮 Valor con periodo: ${(ingreso ? '+' : '-')}${(factorNum * fac).toStringAsFixed(12)}');
+          }
         } else {
           final num = double.parse(texto);
           final contrib = (ingreso ? 1 : -1) * num * fac;
@@ -230,18 +247,15 @@ class FinancialAnalysisUnknown {
       }
     }
 
+    // ---------- Procesar todo ----------
     for (final m in d.movimientos) {
-      if (m.valor != null) {
-        _procesar(m.valor, m.periodo, m.tipo);
-      }
+      if (m.valor != null) _procesar(m.valor, m.periodo, m.tipo);
     }
-
     for (final v in d.valores) {
-      if (v.valor != null) {
-        _procesar(v.valor, v.periodo, v.flujo);
-      }
+      if (v.valor != null) _procesar(v.valor, v.periodo, v.flujo);
     }
 
+    // ---------- Armar ecuación ----------
     final ecuacionFinal = ecuacion.join(' ');
     steps.add('🧮 Ecuación construida: $ecuacionFinal = 0');
 
@@ -250,7 +264,6 @@ class FinancialAnalysisUnknown {
     }
 
     final X = -constante / coefX;
-
     steps.add('🔎 Resolviendo:');
     steps.add('X = -($constante) / ($coefX)');
     steps.add('X = ${X.toStringAsFixed(6)}');

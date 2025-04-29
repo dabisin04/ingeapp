@@ -44,13 +44,16 @@ class ValorAdapter implements ValorRepository {
   }
 
   @override
-  Future<void> deleteValor(int periodo, String tipo, String flujo) async {
-    print(
-      '❌ [ValorAdapter] deleteValor: periodo=$periodo, tipo=$tipo, flujo=$flujo',
-    );
-    _valores.removeWhere(
-      (v) => v.periodo == periodo && v.tipo == tipo && v.flujo == flujo,
-    );
+  Future<void> deleteValor(int? periodo, String tipo, String flujo) async {
+    _valores.removeWhere((v) {
+      if (periodo != null) {
+        // Si viene periodo, compara periodo + tipo + flujo
+        return v.periodo == periodo && v.tipo == tipo && v.flujo == flujo;
+      } else {
+        // Si no viene periodo, compara solo tipo + flujo
+        return v.tipo == tipo && v.flujo == flujo;
+      }
+    });
   }
 
   @override

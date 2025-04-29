@@ -73,7 +73,8 @@ class ValorBloc extends Bloc<ValorEvent, ValorState> {
       '▶️ [ValorBloc] EliminarValorEvent: periodo=${e.periodo}, tipo=${e.tipo}, flujo=${e.flujo}',
     );
     try {
-      await repository.deleteValor(e.periodo, e.tipo, e.flujo);
+      await repository.deleteValor(
+          e.periodo, e.tipo, e.flujo); // ✅ ya acepta int?
       emit(ValorDeleted(e.periodo, e.tipo, e.flujo));
       add(CargarValoresEvent());
     } catch (ex) {

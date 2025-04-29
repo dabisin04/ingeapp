@@ -45,7 +45,7 @@ class _MovementCardDialogState extends State<MovementCardDialog> {
 
     dynamic valorFinal;
     if (valorText.isEmpty) {
-      valorFinal = 0.0;
+      valorFinal = null;
     } else if (double.tryParse(valorText) != null) {
       valorFinal = double.parse(valorText);
     } else {

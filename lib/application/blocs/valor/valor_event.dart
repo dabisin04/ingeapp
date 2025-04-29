@@ -15,7 +15,7 @@ class EditarValorEvent extends ValorEvent {
 }
 
 class EliminarValorEvent extends ValorEvent {
-  final int periodo;
+  final int? periodo;
   final String tipo;
   final String flujo;
   EliminarValorEvent(this.periodo, this.tipo, this.flujo);

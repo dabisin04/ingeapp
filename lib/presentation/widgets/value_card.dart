@@ -38,7 +38,7 @@ class ValueCard extends StatelessWidget {
                 onPressed: () {
                   context.read<ValorBloc>().add(
                         EliminarValorEvent(
-                          valor.periodo!,
+                          valor.periodo,
                           valor.tipo,
                           valor.flujo,
                         ),
