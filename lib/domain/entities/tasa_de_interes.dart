@@ -55,4 +55,27 @@ class TasaDeInteres {
 
   static TasaDeInteres decode(String source) =>
       TasaDeInteres.fromMap(jsonDecode(source) as Map<String, dynamic>);
+
+  // Método copyWith para crear una copia modificada
+  TasaDeInteres copyWith({
+    int? id,
+    double? valor,
+    UnidadDeTiempo? periodicidad,
+    UnidadDeTiempo? capitalizacion,
+    String? tipo,
+    int? periodoInicio,
+    int? periodoFin,
+    String? aplicaA,
+  }) {
+    return TasaDeInteres(
+      id: id ?? this.id,
+      valor: valor ?? this.valor,
+      periodicidad: periodicidad ?? this.periodicidad,
+      capitalizacion: capitalizacion ?? this.capitalizacion,
+      tipo: tipo ?? this.tipo,
+      periodoInicio: periodoInicio ?? this.periodoInicio,
+      periodoFin: periodoFin ?? this.periodoFin,
+      aplicaA: aplicaA ?? this.aplicaA,
+    );
+  }
 }

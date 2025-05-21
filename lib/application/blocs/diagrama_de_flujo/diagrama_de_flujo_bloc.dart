@@ -32,7 +32,14 @@ class FlowDiagramBloc extends Bloc<FlowDiagramEvent, FlowDiagramState> {
     emit(FlowDiagramLoading());
     try {
       await repository.initializeDiagram(
-          periods: event.periods, unit: event.unit);
+        periods: event.periods,
+        unit: event.unit,
+        tasas: event.tasas,
+        valores: event.valores,
+        movimientos: event.movimientos,
+        descripcion: event.descripcion,
+        periodoFocal: event.periodoFocal,
+      );
       final diagram = await repository.getDiagram();
       emit(_loadedState(diagram));
     } catch (e) {

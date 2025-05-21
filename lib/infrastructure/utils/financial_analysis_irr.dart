@@ -4,46 +4,8 @@ import 'package:inge_app/infrastructure/utils/irr_utils.dart';
 
 class FinancialAnalysisIRR {
   static EquationAnalysis analyze(DiagramaDeFlujo d) {
-    final steps = <String>[], terms = <String>[];
+    final steps = <String>[];
     final focal = d.periodoFocal ?? 0;
-
-    // IRR con focal definido
-    if (d.periodoFocal != null && d.tasasDeInteres.isNotEmpty) {
-      steps.add('→ Calcular IRR trasladando flujos a t=$focal');
-
-      final movs = d.movimientos
-          .where((m) => m.periodo != null && m.valor is double)
-          .toList();
-      final vals = d.valores
-          .where((v) => v.periodo != null && v.valor is double)
-          .toList();
-
-      for (var m in movs) {
-        final n = m.periodo! - focal;
-        terms.add('${(m.valor as double).toStringAsFixed(2)}*(1+i)^${n.abs()}');
-      }
-      for (var v in vals) {
-        final n = v.periodo! - focal;
-        terms.add('${(v.valor as double).toStringAsFixed(2)}*(1+i)^${n.abs()}');
-      }
-
-      final eq = '${terms.join(' + ')} = 0';
-      steps.add('Ecuación IRR t=$focal: $eq');
-
-      final rate = IRRUtils.solveRateSimple(
-        movimientos: movs,
-        valores: vals,
-        focalPeriod: focal,
-        step: 0.0001,
-        steps: steps,
-      );
-      steps.add('IRR → i ≈ ${(rate * 100).toStringAsFixed(4)}%');
-
-      return EquationAnalysis(equation: eq, steps: steps, solution: rate);
-    }
-
-    // IRR simple (sin focal)
-    steps.add('→ Calcular IRR simple trasladando a t=0');
 
     final movs = d.movimientos
         .where((m) => m.periodo != null && m.valor is double)
@@ -51,27 +13,38 @@ class FinancialAnalysisIRR {
     final vals =
         d.valores.where((v) => v.periodo != null && v.valor is double).toList();
 
+    final terms = <String>[];
+
     for (var m in movs) {
-      terms
-          .add('${(m.valor as double).toStringAsFixed(2)}*(1+i)^${m.periodo!}');
+      final period = m.periodo!;
+      final n = focal - period;
+      final sign = m.tipo == 'ingreso' ? '+' : '-';
+      final value = (m.valor as double).toStringAsFixed(2);
+      final exponent = n == 0 ? '' : '^${n > 0 ? n : '(${n})'}';
+      terms.add('$sign$value*(1+i)$exponent');
     }
+
     for (var v in vals) {
-      terms
-          .add('${(v.valor as double).toStringAsFixed(2)}*(1+i)^${v.periodo!}');
+      final period = v.periodo!;
+      final n = focal - period;
+      final sign = v.flujo == 'ingreso' ? '+' : '-';
+      final value = (v.valor as double).toStringAsFixed(2);
+      final exponent = n == 0 ? '' : '^${n > 0 ? n : '(${n})'}';
+      terms.add('$sign$value*(1+i)$exponent');
     }
 
-    final eq = '${terms.join(' + ')} = 0';
-    steps.add('Ecuación IRR t=0: $eq');
+    final eq = '${terms.join(" ")} = 0';
 
-    final rate = IRRUtils.solveRateSimple(
-      movimientos: movs,
-      valores: vals,
-      focalPeriod: 0,
-      step: 0.0001,
-      steps: steps,
+    final rate = IRRUtils.solveIRR(
+      movs: movs,
+      vals: vals,
+      focalPeriod: focal,
     );
-    steps.add('IRR → i ≈ ${(rate * 100).toStringAsFixed(4)}%');
 
-    return EquationAnalysis(equation: eq, steps: steps, solution: rate);
+    return EquationAnalysis(
+      equation: eq,
+      steps: steps,
+      solution: rate,
+    );
   }
 }

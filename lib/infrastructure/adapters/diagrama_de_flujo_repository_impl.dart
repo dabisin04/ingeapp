@@ -12,10 +12,14 @@ class FlowDiagramAdapter implements FlowDiagramRepository {
   static const String _historyKey = 'diagram_history';
   DiagramaDeFlujo? _diagram;
 
-  @override
   Future<void> initializeDiagram({
     required int periods,
     required UnidadDeTiempo unit,
+    List<TasaDeInteres>? tasas,
+    List<Valor>? valores,
+    List<Movimiento>? movimientos,
+    String? descripcion,
+    int? periodoFocal,
   }) async {
     if (_diagram != null) {
       await _saveCurrentToHistory();
@@ -23,13 +27,13 @@ class FlowDiagramAdapter implements FlowDiagramRepository {
     _diagram = DiagramaDeFlujo(
       id: DateTime.now().millisecondsSinceEpoch,
       nombre: _diagram?.nombre ?? 'Diagrama ${DateTime.now()}',
-      descripcion: _diagram?.descripcion,
+      descripcion: descripcion ?? _diagram?.descripcion,
       unidadDeTiempo: unit,
       cantidadDePeriodos: periods,
-      periodoFocal: _diagram?.periodoFocal ?? null,
-      tasasDeInteres: [],
-      movimientos: [],
-      valores: [],
+      periodoFocal: periodoFocal ?? _diagram?.periodoFocal,
+      tasasDeInteres: tasas ?? _diagram?.tasasDeInteres ?? [],
+      movimientos: movimientos ?? _diagram?.movimientos ?? [],
+      valores: valores ?? _diagram?.valores ?? [],
     );
     await _saveCurrentToHistory();
   }

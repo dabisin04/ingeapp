@@ -2,124 +2,144 @@ import 'dart:math';
 import 'package:inge_app/domain/entities/movimiento.dart';
 import 'package:inge_app/domain/entities/valor.dart';
 
-/// Utilidades específicas para el cálculo de IRR.
 class IRRUtils {
-  /// Factor de descuento: (1 + rate)^(-periods)
-  static double discountFactor(double rate, int periods) {
-    return pow(1 + rate, -periods).toDouble();
-  }
-
-  /// Neto en focal: descuenta cada movimiento al focalPeriod.
   static double netValueAtFocal(
-    List<Movimiento> movimientos,
+    List<Movimiento> movs,
+    List<Valor> vals,
     double rate,
     int focalPeriod,
   ) {
     double net = 0.0;
-    for (var m in movimientos) {
-      if (m.valor == null) continue;
-      final period = m.periodo ?? focalPeriod;
-      final int n = period - focalPeriod;
-      net += m.valor! * pow(1 + rate, n);
+    print(
+        '--- Calcular netValueAtFocal con tasa ${rate.toStringAsFixed(6)} en t=$focalPeriod ---');
+
+    for (var m in movs) {
+      final p = m.periodo ?? focalPeriod;
+      final c = m.valor ?? 0.0;
+      final n = focalPeriod - p;
+      final moved = pow(1 + rate, n) * c;
+      final sign = m.tipo == 'ingreso' ? '+' : '-';
+      net += (m.tipo == 'ingreso' ? 1 : -1) * moved;
+      print(
+          'Movimiento $sign$c * (1 + i)^$n = ${moved.toStringAsFixed(4)}  → net=$net');
     }
+
+    for (var v in vals) {
+      final p = v.periodo ?? focalPeriod;
+      final c = v.valor ?? 0.0;
+      final n = focalPeriod - p;
+      final moved = pow(1 + rate, n) * c;
+      final sign = v.flujo == 'ingreso' ? '+' : '-';
+      net += (v.flujo == 'ingreso' ? 1 : -1) * moved;
+      print(
+          'Valor     $sign$c * (1 + i)^$n = ${moved.toStringAsFixed(4)}  → net=$net');
+    }
+
+    print('--- Resultado neto total: ${net.toStringAsFixed(4)} ---\n');
     return net;
   }
 
-  /// Derivada de la ecuación de valor respecto a i.
-  static double derivative(
-    List<Movimiento> movimientos,
+  static double netPresentValue(
+    List<Movimiento> movs,
+    List<Valor> vals,
     double rate,
-    int focalPeriod,
   ) {
-    double deriv = 0.0;
-    for (var m in movimientos) {
-      if (m.valor == null) continue;
-      final period = m.periodo ?? focalPeriod;
-      final int n = period - focalPeriod;
-      if (n == 0) continue;
-      deriv += m.valor! * n * pow(1 + rate, n - 1);
+    double npv = 0.0;
+    print('--- Calcular NPV en t=0 con tasa ${rate.toStringAsFixed(6)} ---');
+
+    for (var m in movs) {
+      final p = m.periodo ?? 0;
+      final c = m.valor ?? 0.0;
+      final moved = c / pow(1 + rate, p);
+      final sign = m.tipo == 'ingreso' ? '+' : '-';
+      npv += (m.tipo == 'ingreso' ? 1 : -1) * moved;
+      print(
+          'Movimiento $sign$c / (1 + i)^$p = ${moved.toStringAsFixed(4)} → npv=$npv');
     }
-    return deriv;
+
+    for (var v in vals) {
+      final p = v.periodo ?? 0;
+      final c = v.valor ?? 0.0;
+      final moved = c / pow(1 + rate, p);
+      final sign = v.flujo == 'ingreso' ? '+' : '-';
+      npv += (v.flujo == 'ingreso' ? 1 : -1) * moved;
+      print(
+          'Valor     $sign$c / (1 + i)^$p = ${moved.toStringAsFixed(4)} → npv=$npv');
+    }
+
+    print('--- Resultado NPV total: ${npv.toStringAsFixed(4)} ---\n');
+    return npv;
   }
 
-  /// Newton–Raphson para IRR puro.
-  static double solveRate({
-    required List<Movimiento> movimientos,
+  static double solveIRR({
+    required List<Movimiento> movs,
+    required List<Valor> vals,
     required int focalPeriod,
     double guess = 0.1,
-    double tolerance = 1e-8,
+    double tol = 1e-8,
     int maxIter = 100,
   }) {
     double rate = guess;
+    print('\n=== Iniciar cálculo de IRR con Newton-Raphson ===');
+    print('Guess inicial: ${(rate * 100).toStringAsFixed(4)}%\n');
+
     for (int i = 0; i < maxIter; i++) {
-      final f = netValueAtFocal(movimientos, rate, focalPeriod);
-      final df = derivative(movimientos, rate, focalPeriod);
-      if (df == 0) break;
-      final newRate = rate - f / df;
-      if ((newRate - rate).abs() < tolerance) {
-        rate = newRate;
+      final f = netValueAtFocal(movs, vals, rate, focalPeriod);
+      final df = _derivative(movs, vals, rate, focalPeriod);
+
+      if (df == 0) {
+        print('❌ Derivada nula. Detenido en iteración $i');
         break;
       }
-      rate = newRate;
+
+      final next = rate - f / df;
+      print(
+          'Iter $i → f=${f.toStringAsFixed(6)}, df=${df.toStringAsFixed(6)} → next=${(next * 100).toStringAsFixed(6)}%');
+
+      if ((next - rate).abs() < tol) {
+        print('✅ Convergencia alcanzada en iteración $i\n');
+        rate = next;
+        break;
+      }
+      rate = next;
     }
+
+    print('=== Resultado final IRR: ${(rate * 100).toStringAsFixed(6)}% ===\n');
     return rate;
   }
 
-  /// IRR positiva por barrido + secante local.
-  static double solveRateSimple({
-    required List<Movimiento> movimientos,
-    required List<Valor> valores,
-    required int focalPeriod,
-    double step = 0.0001,
-    List<String>? steps,
-  }) {
-    // Construyo la ecuación en texto
-    final terms = <String>[];
-    for (var m in movimientos) {
-      final n = (m.periodo ?? focalPeriod) - focalPeriod;
-      terms.add('${m.valor!.toStringAsFixed(2)}*(1+i)^${n.abs()}');
-    }
-    for (var v in valores) {
-      final n = (v.periodo ?? focalPeriod) - focalPeriod;
-      terms.add('${v.valor!.toStringAsFixed(2)}*(1+i)^${n.abs()}');
-    }
-    steps?.add('Ecuación IRR t=$focalPeriod: ${terms.join(" + ")} = 0');
+  static double _derivative(
+    List<Movimiento> movs,
+    List<Valor> vals,
+    double rate,
+    int focalPeriod,
+  ) {
+    double d = 0.0;
+    print('→ Derivada en tasa ${rate.toStringAsFixed(6)}');
 
-    // Función objetivo con signo
-    double f(double rate) {
-      double sum = 0.0;
-      for (var m in movimientos) {
-        final n = ((m.periodo ?? focalPeriod) - focalPeriod).abs();
-        final c = m.valor! * pow(1 + rate, -n);
-        sum += m.tipo == 'Ingreso' ? c : -c;
-      }
-      for (var v in valores) {
-        final n = ((v.periodo ?? focalPeriod) - focalPeriod).abs();
-        final c = v.valor! * pow(1 + rate, -n);
-        sum += v.flujo == 'Ingreso' ? c : -c;
-      }
-      return sum;
+    for (var m in movs) {
+      final p = m.periodo ?? focalPeriod;
+      final c = m.valor ?? 0.0;
+      final n = focalPeriod - p;
+      if (n == 0) continue;
+      final term = c * n * pow(1 + rate, n - 1);
+      d += (m.tipo == 'ingreso' ? 1 : -1) * term;
+      print(
+          'Movimiento ${m.tipo} → $c*$n*(1+i)^${n - 1} = ${term.toStringAsFixed(6)}');
     }
 
-    // Barrido para encontrar cambio de signo
-    double r0 = 0.0, f0 = f(0.0);
-    for (double r1 = step; r1 <= 1.0; r1 += step) {
-      final f1 = f(r1);
-      if (f0 * f1 <= 0) {
-        final irr = r0 - f0 * (r1 - r0) / (f1 - f0);
-        steps?.add(
-          'Secante entre ${r0.toStringAsFixed(4)}(${"${f0.toStringAsFixed(2)}"}) '
-          'y ${r1.toStringAsFixed(4)}(${"${f1.toStringAsFixed(2)}"}) → '
-          'i ≈ ${(irr * 100).toStringAsFixed(4)}%',
-        );
-        return irr.clamp(0.0, double.infinity);
-      }
-      r0 = r1;
-      f0 = f1;
+    for (var v in vals) {
+      final p = v.periodo ?? focalPeriod;
+      final c = v.valor ?? 0.0;
+      final n = focalPeriod - p;
+      if (n == 0) continue;
+      final term = c * n * pow(1 + rate, n - 1);
+      d += (v.flujo == 'ingreso' ? 1 : -1) * term;
+      print(
+          'Valor ${v.flujo} → $c*$n*(1+i)^${n - 1} = ${term.toStringAsFixed(6)}');
     }
 
-    steps?.add(
-        'No se detectó cambio de signo, IRR ≈ ${(r0 * 100).toStringAsFixed(4)}%');
-    return r0;
+    print('Resultado derivada: ${d.toStringAsFixed(6)}\n');
+    return d;
   }
 }

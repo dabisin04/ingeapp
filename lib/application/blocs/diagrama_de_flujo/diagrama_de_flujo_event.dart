@@ -8,8 +8,21 @@ abstract class FlowDiagramEvent {}
 class InitializeDiagramEvent extends FlowDiagramEvent {
   final int periods;
   final UnidadDeTiempo unit;
+  final List<TasaDeInteres>? tasas;
+  final List<Valor>? valores;
+  final List<Movimiento>? movimientos;
+  final String? descripcion;
+  final int? periodoFocal;
 
-  InitializeDiagramEvent({required this.periods, required this.unit});
+  InitializeDiagramEvent({
+    required this.periods,
+    required this.unit,
+    this.tasas,
+    this.valores,
+    this.movimientos,
+    this.descripcion,
+    this.periodoFocal,
+  });
 }
 
 class FetchDiagramEvent extends FlowDiagramEvent {}

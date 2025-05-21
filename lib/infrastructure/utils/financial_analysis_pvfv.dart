@@ -1,10 +1,7 @@
-// ignore_for_file: no_leading_underscores_for_local_identifiers
-
 import 'dart:math';
 import 'package:inge_app/domain/entities/diagrama_de_flujo.dart';
 import 'package:inge_app/domain/entities/equation_analysis.dart';
 import 'package:inge_app/domain/entities/valor.dart';
-import 'package:inge_app/domain/entities/tasa_de_interes.dart';
 import 'package:inge_app/infrastructure/utils/rate_conversor.dart';
 
 class FinancialAnalysisPVFV {
@@ -16,162 +13,163 @@ class FinancialAnalysisPVFV {
       throw StateError('Se necesita al menos una tasa de interés.');
     }
 
-    // Buscamos exactamente una incógnita: valor nulo o "X"
+    // Determinar el periodo máximo del diagrama
+    final periods = <int?>[];
+    periods.addAll(d.movimientos.map((m) => m.periodo).where((p) => p != null));
+    periods.addAll(d.valores.map((v) => v.periodo).where((p) => p != null));
+    if (periods.isEmpty) {
+      throw StateError('El diagrama debe tener al menos un periodo definido.');
+    }
+    final int maxPeriod = periods.cast<int>().reduce((a, b) => a > b ? a : b);
+
+    // Validar periodo focal
+    final int focal = d.periodoFocal ?? 0;
+    if (focal != 0 && focal != maxPeriod && focal != d.cantidadDePeriodos) {
+      throw StateError(
+        'El periodo focal debe ser 0 (para Valor Presente) o $maxPeriod/$d.cantidadDePeriodos (para Valor Futuro).',
+      );
+    }
+    final bool isPresentValue = focal == 0;
+
+    // Buscar una incógnita (opcional): valor nulo o "X"
     final valoresNull = d.valores.where((v) => v.valor == null).toList();
     final valoresX = d.valores
         .where((v) =>
             v.valor is String &&
             (v.valor as String).trim().toUpperCase() == 'X')
         .toList();
-
-    if (valoresNull.length + valoresX.length != 1) {
+    final hasUnknown = valoresNull.length + valoresX.length == 1;
+    if (valoresNull.length + valoresX.length > 1) {
       throw StateError(
-        'Debe existir exactamente un Valor con valor=null o "X" como incógnita.',
+        'No puede haber más de una incógnita (valor=null o "X").',
       );
     }
+    final Valor? valorInc = hasUnknown
+        ? (valoresNull.isNotEmpty ? valoresNull.single : valoresX.single)
+        : null;
 
-    // Identificamos el elemento que contiene la incógnita
-    final Valor valorIncognita =
-        valoresNull.isNotEmpty ? valoresNull.single : valoresX.single;
-
-    // El periodo focal será el indicado por el diagrama, o si no viene, el del PV/FV
-    final int focal = d.periodoFocal ?? valorIncognita.periodo!;
-
-    /* ── 2) Normalizar tasas a periódica-vencida ───────────────── */
-    final tasasOk = d.tasasDeInteres.map((t) {
-      final yaOk = t.periodicidad.id == d.unidadDeTiempo.id &&
-          t.capitalizacion.id == d.unidadDeTiempo.id &&
-          RateConversionUtils.normalizeTipo(t.tipo) == 'vencida';
-
-      if (yaOk) return t;
-
-      final nuevaRate = RateConversionUtils.periodicRateForDiagram(
-        tasa: t,
-        unidadObjetivo: d.unidadDeTiempo,
-      );
-
-      return TasaDeInteres(
-        id: t.id,
-        valor: nuevaRate,
-        periodicidad: d.unidadDeTiempo,
-        capitalizacion: d.unidadDeTiempo,
-        tipo: 'Vencida',
-        periodoInicio: t.periodoInicio,
-        periodoFin: t.periodoFin,
-        aplicaA: t.aplicaA,
-      );
-    }).toList();
-
-    steps.add('Tasas normalizadas (% ${d.unidadDeTiempo.nombre}):');
-    for (final t in tasasOk) {
-      steps.add(
-        ' • ${t.periodoInicio}-${t.periodoFin}: '
-        '${(t.valor * 100).toStringAsFixed(6)}%, aplica a ${t.aplicaA}',
-      );
-    }
-
-    /* ── 3) Trasladar flujos a la fecha focal ──────────────────── */
-    double netInFocal = 0.0;
-
-    // Busca la tasa efectiva en un periodo dado
-    double _getRate(int periodo, String tipoFlujo) {
-      final tipoNorm = RateConversionUtils.normalizeTipo(tipoFlujo);
-
-      final tasasAplicables = tasasOk.where((t) {
-        final inRango = periodo >= t.periodoInicio && periodo <= t.periodoFin;
-        final aplica = RateConversionUtils.normalizeTipo(t.aplicaA);
-        return inRango && (aplica == 'todos' || aplica == tipoNorm);
-      }).toList();
-
-      if (tasasAplicables.isEmpty) {
+    // Validar que la incógnita esté en t=0 o t=maxPeriod
+    if (hasUnknown) {
+      final unknownPeriod = valorInc!.periodo;
+      if (unknownPeriod != 0 && unknownPeriod != maxPeriod) {
         throw StateError(
-            '❌ No se encontró tasa aplicable para t=$periodo ($tipoFlujo)');
-      }
-
-      final sumaTasas =
-          tasasAplicables.map((t) => t.valor).reduce((a, b) => a + b);
-
-      steps.add(
-        '🔎 Tasas en t=$periodo ($tipoFlujo): '
-        '${tasasAplicables.map((t) => (t.valor * 100).toStringAsFixed(4)).join('% + ')} '
-        '= ${(sumaTasas * 100).toStringAsFixed(4)}%',
-      );
-
-      return sumaTasas;
-    }
-
-    // Calcula el factor entre el flujo y el focal
-    double _factor(int periodo, double tasa) {
-      final n = (periodo - focal).abs();
-      if (periodo > focal) {
-        // flujo después de focal → descuento
-        return 1 / pow(1 + tasa, n);
-      } else if (periodo < focal) {
-        // flujo antes del focal → capitalizar
-        return pow(1 + tasa, n).toDouble();
-      } else {
-        return 1.0;
+          'La incógnita debe estar en t=0 o t=$maxPeriod para calcular Valor Presente o Futuro.',
+        );
       }
     }
 
-    // Procesamos movimientos (todos los movimientos DEBEN ser double)
+    /* ── 2) Normalizar tasas a periódica efectiva ────────────── */
+    final tasa = d.tasasDeInteres.first;
+    final conversionResult = RateConversionUtils.detailedConversion(
+      tasa: tasa,
+      unidadObjetivo: d.unidadDeTiempo,
+    );
+    final effectiveRate = conversionResult.rate;
+    steps.addAll(conversionResult.steps);
+    steps.add(
+        'Tasa efectiva ${d.unidadDeTiempo.nombre}: ${(effectiveRate * 100).toStringAsFixed(6)}%');
+
+    /* ── 3) Calcular PV y FV ─────────────────────────────── */
+    double pvInflows = 0.0, pvOutflows = 0.0;
+    double fvInflows = 0.0, fvOutflows = 0.0;
+    String pvEquation = '';
+
+    // Función para calcular el factor de descuento (PV) o capitalización (FV)
+    double _pvFactor(int periodo) {
+      final n = periodo; // Desde t hasta 0
+      return 1 / pow(1 + effectiveRate, n);
+    }
+
+    double _fvFactor(int periodo) {
+      final n = focal - periodo; // Desde t hasta el periodo focal
+      return pow(1 + effectiveRate, n).toDouble();
+    }
+
+    // Procesar los movimientos
     for (final m in d.movimientos) {
       if (m.periodo == null || m.valor == null) continue;
-      if (m.valor is! double) {
-        throw StateError('Movimientos deben tener valores numéricos dobles.');
+      final sign =
+          (RateConversionUtils.normalizeTipo(m.tipo) == 'ingreso') ? -1 : 1;
+      final amount = (m.valor as double);
+      final pvContribution = amount * _pvFactor(m.periodo!);
+      final fvContribution = amount * _fvFactor(m.periodo!);
+      print(
+          "fvContribution: $fvContribution, amount: $amount, n=${m.periodo}, _fvFactor: ${_fvFactor(m.periodo!)}");
+      if (isPresentValue) {
+        pvEquation += (sign > 0 ? ' + ' : ' - ') +
+            '${amount.toStringAsFixed(2)}/(1+${effectiveRate.toStringAsFixed(6)})^${m.periodo}';
       }
-      final tasaAplicable = _getRate(m.periodo!, m.tipo);
-      final ingreso = RateConversionUtils.normalizeTipo(m.tipo) == 'ingreso';
-      final aporte = (ingreso ? 1 : -1) *
-          (m.valor as double) *
-          _factor(m.periodo!, tasaAplicable);
-
-      steps.add(
-        '${m.tipo} \$${(m.valor as double).toStringAsFixed(2)} '
-        'en t=${m.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
-      );
-      netInFocal += aporte;
+      if (sign > 0) {
+        pvInflows += pvContribution;
+        fvInflows += fvContribution;
+      } else {
+        pvOutflows += pvContribution.abs();
+        fvOutflows += fvContribution.abs();
+      }
     }
 
-    // Procesamos valores conocidos (ignoramos el valorIncognita)
+    // Procesar los valores conocidos
     for (final v in d.valores) {
-      if (v == valorIncognita) continue;
-      if (v.periodo == null || v.valor == null) continue;
-      if (v.valor is! double) {
-        throw StateError(
-            'Valores deben ser numéricos dobles, excepto la incógnita.');
+      if (v == valorInc || v.periodo == null || v.valor == null) continue;
+      final sign =
+          (RateConversionUtils.normalizeTipo(v.flujo) == 'ingreso') ? 1 : -1;
+      final amount = (v.valor as double);
+      final pvContribution = amount * _pvFactor(v.periodo!);
+      final fvContribution = amount * _fvFactor(v.periodo!);
+      if (isPresentValue) {
+        pvEquation += (sign > 0 ? ' + ' : ' - ') +
+            '${amount.toStringAsFixed(2)}/(1+${effectiveRate.toStringAsFixed(6)})^${v.periodo}';
       }
-      final tasaAplicable = _getRate(v.periodo!, v.flujo);
-      final ingreso = RateConversionUtils.normalizeTipo(v.flujo) == 'ingreso';
-      final aporte = (ingreso ? 1 : -1) *
-          (v.valor as double) *
-          _factor(v.periodo!, tasaAplicable);
-
-      steps.add(
-        '${v.flujo} \$${(v.valor as double).toStringAsFixed(2)} '
-        'en t=${v.periodo} → ${aporte.toStringAsFixed(6)} en t=$focal',
-      );
-      netInFocal += aporte;
+      if (sign > 0) {
+        pvInflows += pvContribution;
+        fvInflows += fvContribution;
+      } else {
+        pvOutflows += pvContribution.abs();
+        fvOutflows += fvContribution.abs();
+      }
     }
 
-    /* ── 4) Despeje del Valor faltante ────────────────────────── */
-    final ingresoObjetivo =
-        RateConversionUtils.normalizeTipo(valorIncognita.flujo) == 'ingreso';
-    final signoObjetivo = ingresoObjetivo ? 1 : -1;
+    // Calcular PV y FV totales sin la incógnita
+    final pv = pvInflows - pvOutflows;
+    final fv = fvInflows - fvOutflows;
+    steps.add('PV (t=0, sin X): ${pv.toStringAsFixed(6)}');
+    steps.add('FV (t=$focal, sin X): ${fv.toStringAsFixed(6)}');
 
-    // netInFocal + signoObjetivo * X = 0  =>  X = -netInFocal / signoObjetivo
-    final double X = -netInFocal / signoObjetivo;
-
+    // Verificar la relación PV-FV
+    final pvToFv = pv * pow(1 + effectiveRate, focal);
     steps.add(
-      'Ecuación en t=$focal: ${netInFocal.toStringAsFixed(6)} '
-      '${signoObjetivo == 1 ? '+' : '-'} X = 0',
-    );
-    steps.add('⇒ X = ${X.toStringAsFixed(6)}');
+        'Verificación: PV * (1+i)^$focal = ${pvToFv.toStringAsFixed(6)} (debe igualar FV)');
 
-    return EquationAnalysis(
-      equation: 'X = ${X.toStringAsFixed(6)}',
-      steps: steps,
-      solution: X,
-    );
+    /* ── 4) Calcular Valor en el periodo focal y Despejar incógnita ──────── */
+    double result;
+    String equation;
+    if (hasUnknown) {
+      final targetSign =
+          (RateConversionUtils.normalizeTipo(valorInc!.flujo) == 'ingreso')
+              ? 1
+              : -1;
+      final period = valorInc.periodo!;
+      double factor;
+      double targetValue;
+      if (isPresentValue) {
+        factor = _pvFactor(period);
+        targetValue = 0 - pv; // Queremos que PV total sea 0
+        // Añadir la incógnita a la ecuación
+        pvEquation = 'X' + pvEquation + ' = 0';
+        equation = pvEquation;
+      } else {
+        factor = _fvFactor(period);
+        targetValue = 0 - fv; // Queremos que FV total sea 0
+        equation = 'X = ${targetValue / (targetSign * factor)}';
+      }
+      final X = targetValue / (targetSign * factor);
+      result = X;
+    } else {
+      result = isPresentValue ? pv : fv;
+      equation =
+          '${isPresentValue ? "PV" : "FV"} = ${result.toStringAsFixed(6)}';
+    }
+
+    return EquationAnalysis(equation: equation, steps: steps, solution: result);
   }
 }

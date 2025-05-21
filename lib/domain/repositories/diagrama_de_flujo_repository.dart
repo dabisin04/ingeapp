@@ -10,6 +10,11 @@ abstract class FlowDiagramRepository {
   Future<void> initializeDiagram({
     required int periods,
     required UnidadDeTiempo unit,
+    List<TasaDeInteres>? tasas,
+    List<Valor>? valores,
+    List<Movimiento>? movimientos,
+    String? descripcion,
+    int? periodoFocal,
   });
   Future<void> updatePeriods(int periods);
   Future<void> clearDiagram();
