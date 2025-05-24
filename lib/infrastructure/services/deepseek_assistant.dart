@@ -11,7 +11,7 @@ import 'package:inge_app/infrastructure/utils/financial_analyzer.dart';
 import 'package:inge_app/domain/entities/equation_analysis.dart';
 
 class DeepSeekAssistant {
-  static const _apiKey = 'sk-b0463bec7c144306ab996cab146cdfb9';
+  static const _apiKey = '';
   static const _apiUrl = 'https://api.deepseek.com/v1/chat/completions';
 
   static Stream<
