@@ -65,20 +65,59 @@ class _FlowPainter extends CustomPainter {
     for (final m in d.movimientos) {
       final period = m.periodo ?? focal;
       final x = period * spacing;
-      final isIngreso = m.tipo == 'Ingreso';
+      final isIngreso = m.tipo == 'ingreso';
       final arrowLen = 80.0;
       final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
       final paintMov = Paint()
-        ..color = isIngreso ? Colors.redAccent : Colors.greenAccent
+        ..color = isIngreso ? Colors.greenAccent : Colors.redAccent
         ..strokeWidth = 2;
 
-      canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
+      // Si es una serie, dibujar línea horizontal
+      if (m.esSerie && m.hastaPeriodo != null) {
+        final endX = m.hastaPeriodo! * spacing;
+        final ySerie = isIngreso ? midY + 40 : midY - 40;
 
-      final pathMov = Path()
-        ..moveTo(x - 6, yEnd + (isIngreso ? -6 : 6))
-        ..lineTo(x, yEnd)
-        ..lineTo(x + 6, yEnd + (isIngreso ? -6 : 6));
-      canvas.drawPath(pathMov, paintMov);
+        // Línea horizontal de la serie
+        canvas.drawLine(Offset(x, ySerie), Offset(endX, ySerie), paintMov);
+
+        // Líneas verticales de conexión
+        canvas.drawLine(Offset(x, midY), Offset(x, ySerie), paintMov);
+        canvas.drawLine(Offset(endX, midY), Offset(endX, ySerie), paintMov);
+
+        // Flechas en los extremos
+        final pathStart = Path()
+          ..moveTo(x + 5, ySerie - 5)
+          ..lineTo(x, ySerie)
+          ..lineTo(x + 5, ySerie + 5);
+        canvas.drawPath(pathStart, paintMov);
+
+        final pathEnd = Path()
+          ..moveTo(endX - 5, ySerie - 5)
+          ..lineTo(endX, ySerie)
+          ..lineTo(endX - 5, ySerie + 5);
+        canvas.drawPath(pathEnd, paintMov);
+
+        // Etiqueta de tipo de serie
+        final tipoSerie = m.tipoSerie ?? 'vencida';
+        final tp = TextPainter(
+          text: TextSpan(
+            text: tipoSerie[0].toUpperCase() + tipoSerie.substring(1),
+            style: TextStyle(color: paintMov.color, fontSize: 10),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final lx = (x + endX) / 2 - tp.width / 2;
+        tp.paint(canvas, Offset(lx, ySerie + (isIngreso ? 4 : -tp.height - 4)));
+      } else {
+        // Movimiento puntual normal
+        canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintMov);
+
+        final pathMov = Path()
+          ..moveTo(x - 6, yEnd + (isIngreso ? -6 : 6))
+          ..lineTo(x, yEnd)
+          ..lineTo(x + 6, yEnd + (isIngreso ? -6 : 6));
+        canvas.drawPath(pathMov, paintMov);
+      }
 
       if (m.valor != null) {
         final valorTexto = formatearValor(m.valor);
@@ -145,7 +184,7 @@ class _FlowPainter extends CustomPainter {
       final arrowLen = 60.0;
       final yEnd = isIngreso ? midY + arrowLen : midY - arrowLen;
       final paintConn = Paint()
-        ..color = (isIngreso ? Colors.redAccent : Colors.greenAccent)
+        ..color = (isIngreso ? Colors.greenAccent : Colors.redAccent)
         ..strokeWidth = 1.5;
       canvas.drawLine(Offset(x, midY), Offset(x, yEnd), paintConn);
 
